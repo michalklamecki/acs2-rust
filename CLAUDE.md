@@ -1,14 +1,18 @@
 # ACS2 Rust — instructions for agents
 
-**Two lines of work share this repository. Establish which one you are on before
+**Three lines of work share this repository. Establish which one you are on before
 anything else**, because the cluster rules below belong to one of them:
 
 | line | what it is | branch | its live state |
 |---|---|---|---|
+| **Rule compaction** | this fork's thesis: ACS2VCP with adaptive rule population compaction | `klamecki/adaptive-rule-copmacting` | `docs/RULE_COMPACTION.md` |
 | **MPX scaling** | multiplexer sizes past the literature's 135 bits, on WCSS | `feature/mpx264` | `docs/AGENT_HANDOFF.md` |
-| **Trajectory utility** | the thesis core: goal and experience selection, ACS2HER/TU | `feature/trajectory-utility` | `~/Desktop/acs2-notatki/tu-stan.md`, outside the checkout |
+| **Trajectory utility** | goal and experience selection, ACS2HER/TU | `feature/trajectory-utility` | `~/Desktop/acs2-notatki/tu-stan.md`, outside the checkout |
 
-MPX scaling is additional research, not the thesis. If nobody told you which line you are
+This repository is a fork. Rule compaction is its own thesis line. MPX scaling and
+trajectory utility are the upstream author's lines; their branches, private notes, cluster
+clones and run archives are not in this fork, and their procedures (`tools/sync_runs.sh`,
+the k=264 chain) do not apply to rule compaction. If nobody told you which line you are
 on, ask before touching anything.
 
 `docs/AGENT_HANDOFF.md` is the live state of the MPX line: results, what is running on the

@@ -5,7 +5,7 @@ anything else**, because the cluster rules below belong to one of them:
 
 | line | what it is | branch | its live state |
 |---|---|---|---|
-| **Rule compaction** | this fork's thesis: ACS2VCP with adaptive rule population compaction | `klamecki/adaptive-rule-copmacting` | `docs/RULE_COMPACTION.md` |
+| **Rule compaction** | this fork's thesis: ACS2VCP with adaptive rule population compaction | `klamecki/adaptive-rule-compacting` | `docs/RULE_COMPACTION.md` |
 | **MPX scaling** | multiplexer sizes past the literature's 135 bits, on WCSS | `feature/mpx264` | `docs/AGENT_HANDOFF.md` |
 | **Trajectory utility** | goal and experience selection, ACS2HER/TU | `feature/trajectory-utility` | `~/Desktop/acs2-notatki/tu-stan.md`, outside the checkout |
 

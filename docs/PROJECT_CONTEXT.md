@@ -11,7 +11,11 @@ for the thesis implementation and registered measurements.
 
 ## 0. Mission
 
-The thesis is **Experience and Goal Selection Based on Trajectory Utility in the ACS2
+In this fork the thesis is rule compaction in ACS2VCP, defined in `docs/RULE_COMPACTION.md`.
+The mission below is the upstream author's thesis; its rules on determinism, parity and
+measurement protocol still bind the shared code.
+
+The upstream thesis is **Experience and Goal Selection Based on Trajectory Utility in the ACS2
 Anticipatory Classifier System**. It develops an extension of ACS2HER that uses the
 utility of stored trajectories to choose goals from the set of training tasks and
 regulates the share of those experiences against HER's, with an optional conservative

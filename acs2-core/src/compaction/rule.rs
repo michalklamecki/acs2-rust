@@ -11,6 +11,26 @@ pub trait CompactableRule {
     fn anticipates_change(&self) -> bool;
 }
 
+pub trait ValuedRule: CompactableRule {
+    fn fitness(&self) -> f64;
+    fn specificity(&self) -> usize;
+    fn is_marked(&self) -> bool;
+}
+
+impl<const N: usize> ValuedRule for Classifier<N> {
+    fn fitness(&self) -> f64 {
+        self.q * self.r
+    }
+
+    fn specificity(&self) -> usize {
+        self.condition.specificity()
+    }
+
+    fn is_marked(&self) -> bool {
+        self.mark.is_marked()
+    }
+}
+
 impl<const N: usize> CompactableRule for Classifier<N> {
     fn condition_includes(&self, other: &Self) -> bool {
         self.condition.includes(&other.condition)

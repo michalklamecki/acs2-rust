@@ -196,6 +196,13 @@ impl CompactionParameters {
         self.record_census
     }
 
+    pub fn evidence_operator(&self) -> Option<OperatorKind> {
+        self.operators
+            .iter()
+            .find(|operator| operator.needs_evidence())
+            .map(Operator::kind)
+    }
+
     fn validated(self) -> Result<Self, CompactionParameterError> {
         if self.mode == CompactionMode::Off {
             return Ok(self);

@@ -1,6 +1,6 @@
 use acs2_core::compaction::{
     CheckResult, CompactionController, CompactionMode, CompactionParameters, CompactionPolicy,
-    CompactionSignals, EvidenceSource, ReductionEngine, ReductionFeedback, ReductionRecord,
+    CompactionSignals, MatchingCost, ReductionEngine, ReductionFeedback, ReductionRecord,
     ReductionRequest, SignalWindow, TaskGeometry, TriggerDecision, COMPACTION_STREAM,
 };
 use acs2_core::learning::replay::ReplaySample;
@@ -9,10 +9,10 @@ use acs2_core::representation::population::Population;
 use acs2_core::support::config::Configuration;
 use acs2_core::support::knowledge::Transition;
 use acs2_core::support::rng::{ChaChaRandomSource, RandomSource};
-use acs2_trajectory::TrajectoryStore;
 
 use super::priority::{acceptance, action_value_uncounted, population_variance};
 use super::{Agent, ConsistencyConfiguration};
+use crate::episodic_replay::evidence::StoredEvidence;
 use crate::episodic_replay::{EpisodicConfiguration, ReplayEnvironment, UpdateCounts};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -111,11 +111,7 @@ impl CompactingConfiguration {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct HeadCost {
-    pub match_formations: u64,
-    pub classifier_tests: u64,
-}
+pub type HeadCost = MatchingCost;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct AcceptanceSummary {
@@ -171,39 +167,6 @@ struct BoundaryMark {
     population_size: usize,
     counts: UpdateCounts,
     value_queries: u64,
-}
-
-struct StoredEvidence<'a, const S: usize, const G: usize> {
-    store: &'a TrajectoryStore<S, G>,
-}
-
-impl<const S: usize, const G: usize> StoredEvidence<'_, S, G> {
-    fn collect<const M: usize>(&self, indices: &[usize]) -> Vec<Transition<M>> {
-        let mut transitions = Vec::with_capacity(indices.len());
-        let mut pending = indices.iter().copied().peekable();
-        let mut offset = 0usize;
-        for episode in self.store.episodes() {
-            let end = offset + episode.len();
-            while let Some(index) = pending.next_if(|&index| index < end) {
-                let local = index - offset;
-                let desired = episode.start().desired;
-                transitions.push(Transition::new(
-                    GoalLayout::<S, G, M>::join(episode.observation(local), &desired),
-                    episode.steps()[local].action,
-                    GoalLayout::<S, G, M>::join(episode.observation(local + 1), &desired),
-                ));
-            }
-            offset = end;
-        }
-        transitions
-    }
-}
-
-impl<const S: usize, const G: usize, const M: usize> EvidenceSource<M> for StoredEvidence<'_, S, G> {
-    fn sample(&self, size: usize, rng: &mut dyn RandomSource) -> Vec<Transition<M>> {
-        let indices = acs2_core::compaction::subsample_indices(self.store.len(), size, rng);
-        self.collect::<M>(&indices)
-    }
 }
 
 struct AcceptanceAudit<'a, const M: usize> {
@@ -508,26 +471,19 @@ impl<
 
     fn account_matching_cost(&mut self, playing: usize, mark: &BoundaryMark) {
         let heads = self.agent.heads();
-        let counts = heads[playing].counts();
-        let environment = counts.environment_steps - mark.counts.environment_steps;
-        let learning = 3 * (counts.full - mark.counts.full)
-            + 2 * (counts.values_only - mark.counts.values_only);
-        let ended = heads[playing].population().len() as u64;
-        let started = mark.population_size as u64;
+        let formations = heads[playing].counts().formations_since(&mark.counts);
+        let ended = heads[playing].population().len();
         let queries = (self.agent.priority_counts().value_queries - mark.value_queries)
             / heads.len() as u64;
         for (index, cost) in self.costs.iter_mut().enumerate() {
             let tested_at_draw = if index == playing {
-                started
+                mark.population_size
             } else {
-                heads[index].population().len() as u64
+                heads[index].population().len()
             };
-            cost.match_formations += queries;
-            cost.classifier_tests += queries * tested_at_draw;
+            cost.charge_queries(queries, tested_at_draw);
         }
-        let cost = &mut self.costs[playing];
-        cost.match_formations += environment + learning;
-        cost.classifier_tests += environment * started + learning * ((started + ended) / 2);
+        self.costs[playing].charge_episode(formations, mark.population_size, ended);
     }
 
     fn compact_per_head(&mut self) {
@@ -535,9 +491,7 @@ impl<
             return;
         };
         let audit = AcceptanceAudit::of(&self.agent, self.configuration.acceptance_limits);
-        let evidence = StoredEvidence {
-            store: self.agent.store(),
-        };
+        let evidence = StoredEvidence::new(self.agent.store());
         let mut replacements = Vec::new();
         for (head, controller) in controllers.iter_mut().enumerate() {
             let state = &self.agent.heads()[head];
@@ -596,9 +550,7 @@ impl<
             strength,
         };
         let audit = AcceptanceAudit::of(&self.agent, self.configuration.acceptance_limits);
-        let evidence = StoredEvidence {
-            store: self.agent.store(),
-        };
+        let evidence = StoredEvidence::new(self.agent.store());
         let mut reports = Vec::with_capacity(heads.len());
         for (head, engine) in synchronous.engines.iter_mut().enumerate() {
             let context = AuditContext {
@@ -650,7 +602,7 @@ impl<
         }
         let store = self.agent.store();
         let indices = acs2_core::compaction::strided_indices(store.len(), probe.sample);
-        let evidence = StoredEvidence { store }.collect::<M>(&indices);
+        let evidence = StoredEvidence::new(store).collect::<M>(&indices);
         let samples = replay_samples(&evidence);
         let audit = AcceptanceAudit::of(&self.agent, None);
         let (summary, work) = audit.summarize(&samples, 0, None);
@@ -673,6 +625,7 @@ impl<
 mod tests {
     use super::*;
     use acs2_core::compaction::trigger::{CostBenefit, Once, Periodic};
+    use acs2_core::compaction::EvidenceSource;
     use acs2_core::compaction::{
         fixed_strength_policy, AuditPolicy, AuditThresholds, CompactionStrength, DynamicThresholds,
         Operator,
@@ -1057,7 +1010,7 @@ mod tests {
         let mut wrapped = compacting(2, CompactingConfiguration::off());
         train(&mut wrapped, 3);
         let store = wrapped.agent().store();
-        let source = StoredEvidence { store };
+        let source = StoredEvidence::new(store);
         let everything: Vec<Transition<2>> =
             source.sample(1000, &mut ChaChaRandomSource::from_seed(1));
         assert_eq!(everything.len(), store.len());

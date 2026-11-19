@@ -1,3 +1,4 @@
+pub mod compacting;
 pub mod replay;
 pub mod one_update;
 pub mod episodic;
@@ -66,6 +67,14 @@ impl<const N: usize, R: RandomSource> Agent<N, R> {
 
     pub fn replay_memory(&self) -> &ReplayMemory<N> {
         &self.replay_memory
+    }
+
+    pub fn truncation_mode(&self) -> TruncationMode {
+        self.truncation_mode
+    }
+
+    pub fn replace_population(&mut self, population: Population<N>) {
+        self.population = population;
     }
 }
 

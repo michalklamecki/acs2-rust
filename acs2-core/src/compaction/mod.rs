@@ -2,6 +2,7 @@ pub mod audit;
 pub mod capacity;
 pub mod census;
 pub mod controller;
+pub mod cost;
 pub mod cracs;
 pub mod dynamic_thresholds;
 pub mod evidence;
@@ -12,6 +13,7 @@ pub mod mature_subsumption;
 pub mod outcome;
 pub mod rule;
 pub mod rule_key;
+pub mod single_head;
 pub mod trigger;
 pub mod value_guard;
 
@@ -31,6 +33,7 @@ pub use controller::{
     ReductionRecord, ReductionReport, ReductionRequest, RemovalCounts, SignalWindow, StageRecord,
     TaskGeometry, COMPACTION_STREAM,
 };
+pub use cost::{EpisodeFormations, MatchingCost};
 pub use cracs::{
     compact, compact_population, is_subsumed, reliable_mean_specificity, CompactionConfiguration,
     CompactionOutcome, Decision, FilterReason,
@@ -48,6 +51,7 @@ pub use mature_subsumption::{
 pub use outcome::{ReductionOutcome, RemovalReason, Verdict};
 pub use rule::{CompactableRule, ValuedRule};
 pub use rule_key::RuleKey;
+pub use single_head::SingleHeadCompaction;
 pub use trigger::{
     BaseTrigger, CompactionPolicy, CompactionStrength, ReductionFeedback, StrengthBounds,
     TriggerCondition, TriggerDecision, TriggerObservation,

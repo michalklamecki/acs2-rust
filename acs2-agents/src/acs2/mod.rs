@@ -16,6 +16,8 @@ struct PreviousStep<const N: usize> {
     reward: f64,
 }
 
+pub mod compacting;
+
 pub struct Agent<const N: usize, R: RandomSource> {
     population: Population<N>,
     config: Configuration,
@@ -45,6 +47,14 @@ impl<const N: usize, R: RandomSource> Agent<N, R> {
     pub fn with_truncation_mode(mut self, mode: TruncationMode) -> Self {
         self.truncation_mode = mode;
         self
+    }
+
+    pub fn truncation_mode(&self) -> TruncationMode {
+        self.truncation_mode
+    }
+
+    pub fn replace_population(&mut self, population: Population<N>) {
+        self.population = population;
     }
 }
 

@@ -10,9 +10,16 @@ use acs2_core::representation::perception::Perception;
 use acs2_core::representation::population::Population;
 use acs2_core::support::config::Configuration;
 use acs2_core::support::rng::RandomSource;
+use acs2_core::compaction::EpisodeFormations;
 use acs2_trajectory::{
     DrawnSample, GoalEvaluator, SampleOrigin, Sampler, SamplerConfiguration, TrajectoryStore,
 };
+
+pub mod compacting;
+pub mod evidence;
+
+#[cfg(test)]
+pub(crate) mod test_environment;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EpisodicConfiguration {
@@ -34,6 +41,16 @@ pub struct UpdateCounts {
     pub values_only: u64,
     pub skipped_warmup_steps: u64,
     pub environment_steps: u64,
+}
+
+impl UpdateCounts {
+    pub fn formations_since(&self, earlier: &UpdateCounts) -> EpisodeFormations {
+        EpisodeFormations {
+            environment: self.environment_steps - earlier.environment_steps,
+            learning: 3 * (self.full - earlier.full)
+                + 2 * (self.values_only - earlier.values_only),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -120,6 +137,10 @@ impl<const S: usize, const G: usize, const M: usize, R: RandomSource, P: RandomS
 
     pub fn population(&self) -> &Population<M> {
         &self.population
+    }
+
+    pub fn replace_population(&mut self, population: Population<M>) {
+        self.population = population;
     }
 
     pub fn config(&self) -> &Configuration {

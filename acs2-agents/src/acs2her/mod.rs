@@ -4,6 +4,8 @@ use acs2_trajectory::{Admissibility, GoalStrategy, SamplerConfiguration, Selecti
 
 use crate::episodic_replay::{CopyUpdate, EpisodicAgent, EpisodicConfiguration, EpisodicReplay};
 
+pub mod compacting;
+
 #[cfg(test)]
 mod pyalcs_differential;
 

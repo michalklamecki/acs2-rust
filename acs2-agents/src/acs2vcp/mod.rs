@@ -17,6 +17,7 @@ use crate::episodic_replay::{
 };
 use priority::{acceptance, action_value, population_variance, PriorityCounts, MAX_TEMPERATURE};
 
+pub mod compacting;
 pub mod priority;
 
 #[cfg(test)]
@@ -222,6 +223,9 @@ impl<
 
     pub fn heads(&self) -> &[Head<M, R>] {
         &self.heads
+    }
+    pub fn replace_population(&mut self, head: usize, population: Population<M>) {
+        self.heads[head].population = population;
     }
     pub fn config(&self) -> &Configuration {
         &self.config

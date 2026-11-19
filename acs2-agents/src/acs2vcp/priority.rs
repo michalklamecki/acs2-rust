@@ -29,6 +29,17 @@ pub fn action_value<const M: usize>(population: &Population<M>, sample: &ReplayS
     MaxFitnessBootstrap.estimate(population, &action_set)
 }
 
+pub fn action_value_uncounted<const M: usize>(
+    population: &Population<M>,
+    sample: &ReplaySample<M>,
+) -> f64 {
+    let matched: Vec<_> = (0..population.len())
+        .filter(|&reference| population.get(reference).does_match(&sample.state))
+        .collect();
+    let action_set = population.form_action_set(&matched, sample.action);
+    MaxFitnessBootstrap.estimate(population, &action_set)
+}
+
 pub fn acceptance(variance: f64, maximum: f64, temperature: u32) -> f64 {
     assert!(maximum.is_finite() && maximum >= 0.0);
     assert!(variance.is_finite() && variance >= 0.0 && variance <= maximum);

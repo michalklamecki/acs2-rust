@@ -15,8 +15,9 @@ use acs2_measure::goal_protocol::{
     registered_configuration, MazeGoalDistributions, TaskProtocol, MAZE_PROTOCOL_ID,
 };
 use acs2_measure::pair_protocol::{MazePairDistributions, MAZE_PAIR_PROTOCOL_ID};
-use acs2_measure::runner::run_protocol_with_sink;
-use acs2_measure::runner::{run_with_sink, AgentKind, RunMetadata, RunSettings};
+use acs2_measure::compaction_spec::{CompactionSpecification, ShadowSpecification};
+use acs2_measure::runner::run_protocol_shadowed_with_sink;
+use acs2_measure::runner::{AgentKind, CompactingFamily, RunInputs, RunMetadata, RunSettings};
 use acs2_measure::task::{
     bit_goal, parse_cells, taxi_goal, BitTask, HandEyeTask, MazeTask, Task, TaxiTask,
 };
@@ -37,6 +38,12 @@ struct Options {
     record_starts: bool,
     protocol: Option<String>,
     evaluation_blocks: Option<String>,
+    shadow: Option<&'static ShadowSpecification>,
+}
+
+enum RequestedAgent {
+    Plain(AgentKind),
+    Compacting(CompactingFamily),
 }
 
 impl Options {
@@ -45,7 +52,12 @@ impl Options {
         let mut cap = None;
         let mut pool = "full".to_owned();
         let mut encoding = "coordinates".to_owned();
-        let mut agents = vec![AgentKind::Acs2, AgentKind::Acs2Er];
+        let mut requested = vec![
+            RequestedAgent::Plain(AgentKind::Acs2),
+            RequestedAgent::Plain(AgentKind::Acs2Er),
+        ];
+        let mut compaction: Option<&'static CompactionSpecification> = None;
+        let mut shadow: Option<&'static ShadowSpecification> = None;
         let mut seeds = vec![42, 43, 44, 45, 46];
         let mut targets = None;
         let mut out = None;
@@ -69,13 +81,30 @@ impl Options {
                 "--pool" => pool = value,
                 "--encoding" => encoding = value,
                 "--agents" => {
-                    agents = value
+                    requested = value
                         .split(',')
-                        .map(|part| {
-                            AgentKind::from_run_name(part, 2.0 / 3.0)
-                                .unwrap_or_else(|message| panic!("{message}"))
+                        .map(|part| match CompactingFamily::from_run_name(part) {
+                            Some(family) => RequestedAgent::Compacting(family),
+                            None => RequestedAgent::Plain(
+                                AgentKind::from_run_name(part, 2.0 / 3.0)
+                                    .unwrap_or_else(|message| panic!("{message}")),
+                            ),
                         })
                         .collect()
+                }
+                "--compaction" => {
+                    compaction = Some(
+                        CompactionSpecification::from_path(&PathBuf::from(&value))
+                            .unwrap_or_else(|error| panic!("{error}"))
+                            .leak(),
+                    )
+                }
+                "--compaction-shadow" => {
+                    shadow = Some(
+                        ShadowSpecification::from_path(&PathBuf::from(&value))
+                            .unwrap_or_else(|error| panic!("{error}"))
+                            .leak(),
+                    )
                 }
                 "--seeds" => {
                     seeds = value
@@ -116,7 +145,38 @@ impl Options {
                 && targets[0] > 0
                 && targets.windows(2).all(|pair| pair[0] < pair[1])
         );
-        assert!(!seeds.is_empty() && !agents.is_empty());
+        assert!(!seeds.is_empty() && !requested.is_empty());
+        let wants_compaction = requested
+            .iter()
+            .any(|agent| matches!(agent, RequestedAgent::Compacting(_)));
+        assert!(
+            compaction.is_some() || !wants_compaction,
+            "a compacting run name needs --compaction <path.json>"
+        );
+        assert!(
+            compaction.is_none() || wants_compaction,
+            "--compaction applies only to the compacting run names"
+        );
+        let mut agents: Vec<AgentKind> = requested
+            .into_iter()
+            .map(|agent| match agent {
+                RequestedAgent::Plain(kind) => kind,
+                RequestedAgent::Compacting(family) => AgentKind::compacting(
+                    family,
+                    compaction.expect("checked above"),
+                )
+                .unwrap_or_else(|message| panic!("{message}")),
+            })
+            .collect();
+        if let Some(specification) = shadow {
+            for agent in &agents {
+                assert!(
+                    specification.evidence_sample == 0 || agent.keeps_experience_memory(),
+                    "agent {} keeps no experience memory, so --compaction-shadow needs evidence_sample 0 for it",
+                    agent.name()
+                );
+            }
+        }
         if let Some(proportion) = relabel_proportion {
             assert!(proportion.is_finite() && (0.0..=1.0).contains(&proportion));
             assert!(
@@ -137,17 +197,11 @@ impl Options {
             }
         }
         if let Some(temperature) = vcp_temperature {
-            use acs2_agents::acs2vcp::Preset;
             assert!((1..=acs2_agents::acs2vcp::priority::MAX_TEMPERATURE).contains(&temperature));
-            assert!(agents.iter().all(|agent| matches!(agent,
-                AgentKind::Acs2Vcp(Preset::PrioritizedTwo { .. } | Preset::PrioritizedFour { .. }))),
-                "temperature is accepted only by prioritized VCP presets");
             for agent in &mut agents {
-                *agent = match agent {
-                    AgentKind::Acs2Vcp(Preset::PrioritizedTwo { .. }) => AgentKind::Acs2Vcp(Preset::PrioritizedTwo { temperature }),
-                    AgentKind::Acs2Vcp(Preset::PrioritizedFour { .. }) => AgentKind::Acs2Vcp(Preset::PrioritizedFour { temperature }),
-                    _ => unreachable!(),
-                };
+                *agent = agent
+                    .with_vcp_temperature(temperature)
+                    .expect("temperature is accepted only by prioritized VCP presets");
             }
         }
         if let Some(blocks) = &evaluation_blocks {
@@ -172,6 +226,7 @@ impl Options {
             record_starts,
             protocol,
             evaluation_blocks,
+            shadow,
         }
     }
 }
@@ -186,15 +241,18 @@ fn execute<T, const S: usize, const G: usize, const M: usize>(
 {
     for &seed in &options.seeds {
         for &kind in &options.agents {
-            run_with_sink(
-                task,
+            run_protocol_shadowed_with_sink::<_, _, S, G, M>(
+                &TaskProtocol::full_pool(task),
                 kind,
-                seed,
-                &options.targets,
-                metadata,
-                RunSettings {
-                    evaluate_points: true,
-                    capture_final_state: false,
+                options.shadow,
+                RunInputs {
+                    seed,
+                    targets: &options.targets,
+                    metadata,
+                    settings: RunSettings {
+                        evaluate_points: true,
+                        capture_final_state: false,
+                    },
                 },
                 &mut |row| {
                     writeln!(writer, "{}", row).expect("write result");
@@ -278,15 +336,18 @@ fn execute_protocol<T, const S: usize, const G: usize, const M: usize>(
     };
     for &seed in &options.seeds {
         for &kind in &options.agents {
-            run_protocol_with_sink::<_, _, S, G, M>(
+            run_protocol_shadowed_with_sink::<_, _, S, G, M>(
                 protocol,
                 kind,
-                seed,
-                &options.targets,
-                metadata,
-                RunSettings {
-                    evaluate_points: true,
-                    capture_final_state: false,
+                options.shadow,
+                RunInputs {
+                    seed,
+                    targets: &options.targets,
+                    metadata,
+                    settings: RunSettings {
+                        evaluate_points: true,
+                        capture_final_state: false,
+                    },
                 },
                 &mut |row| {
                     writeln!(writer, "{row}").expect("write result");

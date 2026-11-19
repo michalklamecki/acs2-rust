@@ -7,6 +7,7 @@ use acs2_core::learning::replay::ReplaySample;
 use acs2_core::learning::action_selection::{ActionSelector, BestAction, EpsilonGreedy};
 use acs2_agents::acs2::Agent;
 use acs2_core::representation::classifier::Classifier;
+use acs2_core::compaction::TaskGeometry;
 use acs2_core::support::config::{AlpGenVariant, Configuration};
 use acs2_core::ports::environment::{Environment, StepOutcome};
 use acs2_core::ports::goal::{
@@ -23,6 +24,8 @@ use acs2_core::representation::symbol::Symbol;
 use acs2_core::trial::{LearningAgent, TruncationMode};
 use serde_json::{json, Value};
 
+use crate::agents::instrumented::{Inspected, Instrumentation, Instrumented};
+use crate::compaction_spec::{CompactionSpecification, ShadowSpecification};
 use crate::goal_protocol::TaskProtocol;
 use crate::reference::{reference, Reference};
 use crate::task::{Pair, Task};
@@ -45,9 +48,127 @@ pub enum AgentKind {
     Acs2HerValues { proportion: f64 },
     Acs2HerValuesShortened { proportion: f64 },
     Acs2Vcp(acs2_agents::acs2vcp::Preset),
+    Compacting {
+        family: CompactingFamily,
+        specification: &'static CompactionSpecification,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum CompactingFamily {
+    Acs2,
+    Acs2Er,
+    Acs2ErEpisodic,
+    Acs2Her,
+    Acs2Vcp(acs2_agents::acs2vcp::Preset),
+}
+
+impl CompactingFamily {
+    pub fn from_run_name(name: &str) -> Option<Self> {
+        use acs2_agents::acs2vcp::Preset;
+        match name {
+            "acs2_compacting" => Some(Self::Acs2),
+            "acs2er_compacting" => Some(Self::Acs2Er),
+            "acs2er_episodic_compacting" => Some(Self::Acs2ErEpisodic),
+            "acs2her_compacting" => Some(Self::Acs2Her),
+            "acs2vcp_k2_compacting" => Some(Self::Acs2Vcp(Preset::PrioritizedTwo { temperature: 1 })),
+            "acs2vcp_k4_compacting" => Some(Self::Acs2Vcp(Preset::PrioritizedFour { temperature: 1 })),
+            "acs2vcp_k2_uniform_compacting" => Some(Self::Acs2Vcp(Preset::UniformTwo)),
+            "acs2vcp_k4_uniform_compacting" => Some(Self::Acs2Vcp(Preset::UniformFour)),
+            _ => None,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        use acs2_agents::acs2vcp::Preset;
+        match self {
+            Self::Acs2 => "acs2_compacting",
+            Self::Acs2Er => "acs2er_compacting",
+            Self::Acs2ErEpisodic => "acs2er_episodic_compacting",
+            Self::Acs2Her => "acs2her_compacting",
+            Self::Acs2Vcp(Preset::PrioritizedTwo { .. }) => "acs2vcp_k2_compacting",
+            Self::Acs2Vcp(Preset::PrioritizedFour { .. }) => "acs2vcp_k4_compacting",
+            Self::Acs2Vcp(Preset::UniformTwo) => "acs2vcp_k2_uniform_compacting",
+            Self::Acs2Vcp(Preset::UniformFour) => "acs2vcp_k4_uniform_compacting",
+        }
+    }
+
+    pub fn plain(self) -> AgentKind {
+        match self {
+            Self::Acs2 => AgentKind::Acs2,
+            Self::Acs2Er => AgentKind::Acs2Er,
+            Self::Acs2ErEpisodic => AgentKind::Acs2ErEpisodic,
+            Self::Acs2Her => AgentKind::Acs2Her,
+            Self::Acs2Vcp(preset) => AgentKind::Acs2Vcp(preset),
+        }
+    }
+
+    fn specification_family(self) -> crate::compaction_spec::Family {
+        use crate::compaction_spec::Family;
+        match self {
+            Self::Acs2 => Family::Acs2,
+            Self::Acs2Er => Family::Acs2Er,
+            Self::Acs2ErEpisodic | Self::Acs2Her => Family::Episodic,
+            Self::Acs2Vcp(_) => Family::Vcp,
+        }
+    }
+
+    pub fn with_temperature(self, temperature: u32) -> Option<Self> {
+        use acs2_agents::acs2vcp::Preset;
+        match self {
+            Self::Acs2Vcp(Preset::PrioritizedTwo { .. }) => {
+                Some(Self::Acs2Vcp(Preset::PrioritizedTwo { temperature }))
+            }
+            Self::Acs2Vcp(Preset::PrioritizedFour { .. }) => {
+                Some(Self::Acs2Vcp(Preset::PrioritizedFour { temperature }))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl AgentKind {
+    pub fn keeps_experience_memory(self) -> bool {
+        !matches!(
+            self,
+            Self::Acs2
+                | Self::Acs2ErOneUpdate
+                | Self::Compacting {
+                    family: CompactingFamily::Acs2,
+                    ..
+                }
+        )
+    }
+
+    pub fn with_vcp_temperature(self, temperature: u32) -> Option<Self> {
+        use acs2_agents::acs2vcp::Preset;
+        match self {
+            Self::Acs2Vcp(Preset::PrioritizedTwo { .. }) => {
+                Some(Self::Acs2Vcp(Preset::PrioritizedTwo { temperature }))
+            }
+            Self::Acs2Vcp(Preset::PrioritizedFour { .. }) => {
+                Some(Self::Acs2Vcp(Preset::PrioritizedFour { temperature }))
+            }
+            Self::Compacting { family, specification } => family
+                .with_temperature(temperature)
+                .map(|family| Self::Compacting { family, specification }),
+            _ => None,
+        }
+    }
+
+    pub fn compacting(
+        family: CompactingFamily,
+        specification: &'static CompactionSpecification,
+    ) -> Result<Self, String> {
+        specification
+            .validate_for(family.specification_family())
+            .map_err(|error| format!("{}: {error}", family.name()))?;
+        Ok(Self::Compacting {
+            family,
+            specification,
+        })
+    }
+
     pub fn from_run_name(name: &str, proportion: f64) -> Result<Self, String> {
         let replacement = crate::agent_names::canonical_run_name(name);
         if replacement != name {
@@ -67,6 +188,9 @@ impl AgentKind {
             "acs2vcp_k4" => Ok(Self::Acs2Vcp(acs2_agents::acs2vcp::Preset::PrioritizedFour { temperature: 1 })),
             "acs2vcp_k2_uniform" => Ok(Self::Acs2Vcp(acs2_agents::acs2vcp::Preset::UniformTwo)),
             "acs2vcp_k4_uniform" => Ok(Self::Acs2Vcp(acs2_agents::acs2vcp::Preset::UniformFour)),
+            _ if CompactingFamily::from_run_name(name).is_some() => {
+                Err(format!("agent {name} needs a compaction specification; pass --compaction <path.json>"))
+            }
             _ => Err(format!("unknown agent {name}")),
         }
     }
@@ -83,6 +207,7 @@ impl AgentKind {
             Self::Acs2HerValues { .. } => "acs2her_values",
             Self::Acs2HerValuesShortened { .. } => "acs2her_values_shortened",
             Self::Acs2Vcp(preset) => preset.name(),
+            Self::Compacting { family, .. } => family.name(),
         }
     }
 }
@@ -179,6 +304,8 @@ pub trait GoalAgent<const S: usize, const G: usize, const M: usize> {
     fn agent_parameters(&self) -> Value;
     fn ensemble_diagnostics(&self, _transitions: Option<&[Transition<M>]>) -> Option<Value> { None }
     fn head_disagreement(&self, _transitions: &[Transition<M>]) -> Option<Value> { None }
+    fn compaction_diagnostics(&mut self) -> Option<Value> { None }
+    fn compaction_shadow_diagnostics(&mut self) -> Option<Value> { None }
 }
 
 pub struct CoreAgent<A, const M: usize> {
@@ -663,6 +790,14 @@ where
     )
 }
 
+#[derive(Clone, Copy)]
+pub struct RunInputs<'a> {
+    pub seed: u64,
+    pub targets: &'a [u64],
+    pub metadata: &'a RunMetadata<'a>,
+    pub settings: RunSettings,
+}
+
 pub fn run_protocol_with_sink<T, F, const S: usize, const G: usize, const M: usize>(
     protocol: &TaskProtocol<'_, T>,
     kind: AgentKind,
@@ -676,24 +811,114 @@ where
     T: Task<S, G, M>,
     F: FnMut(Value),
 {
+    let inputs = RunInputs {
+        seed,
+        targets,
+        metadata,
+        settings,
+    };
+    run_protocol_shadowed_with_sink(protocol, kind, None, inputs, emit)
+}
+
+fn drive<T, A, F, const S: usize, const G: usize, const M: usize>(
+    protocol: &TaskProtocol<'_, T>,
+    agent: A,
+    instrumentation: Instrumentation,
+    actions: usize,
+    inputs: RunInputs<'_>,
+    emit: &mut F,
+    capture: impl FnOnce(&A) -> (String, String),
+) -> Option<(String, String)>
+where
+    T: Task<S, G, M>,
+    A: GoalAgent<S, G, M> + Inspected<S, G, M>,
+    F: FnMut(Value),
+{
+    let RunInputs {
+        seed,
+        targets,
+        metadata,
+        settings,
+    } = inputs;
+    if instrumentation.is_empty() {
+        let mut agent = agent;
+        run_goal_agent_protocol_with_sink(
+            protocol,
+            &mut agent,
+            seed,
+            targets,
+            metadata,
+            settings.evaluate_points,
+            emit,
+        );
+        return settings.capture_final_state.then(|| capture(&agent));
+    }
+    let geometry = TaskGeometry {
+        actions,
+        goal_attributes: GoalLayout::<S, G, M>::goal_positions(),
+    };
+    let mut agent = Instrumented::<A, M>::new::<S, G>(agent, instrumentation, &geometry)
+        .unwrap_or_else(|error| panic!("{error}"));
+    run_goal_agent_protocol_with_sink(
+        protocol,
+        &mut agent,
+        seed,
+        targets,
+        metadata,
+        settings.evaluate_points,
+        emit,
+    );
+    settings.capture_final_state.then(|| capture(&agent.inner))
+}
+
+fn episodic_state<const S: usize, const G: usize, const M: usize, A>(
+    agent: &crate::agents::EpisodicGoalAgent<A>,
+) -> (String, String)
+where
+    A: acs2_agents::episodic_replay::EpisodicAgent<S, G, M>,
+{
+    (
+        format!("{:?}", agent.0.learner().population().classifiers()),
+        agent.0.learner().snapshot(),
+    )
+}
+
+pub fn run_protocol_shadowed_with_sink<T, F, const S: usize, const G: usize, const M: usize>(
+    protocol: &TaskProtocol<'_, T>,
+    kind: AgentKind,
+    shadow: Option<&'static ShadowSpecification>,
+    inputs: RunInputs<'_>,
+    emit: &mut F,
+) -> Option<(String, String)>
+where
+    T: Task<S, G, M>,
+    F: FnMut(Value),
+{
     let task = protocol.training;
     let preset = Preset::thesis();
     let config = preset.config(task.actions());
+    let actions = config.number_of_possible_actions;
+    let seed = inputs.seed;
     let agent_rng = ChaChaRandomSource::from_seed_and_stream(seed, AGENT_STREAM);
+    let instrumentation = Instrumentation {
+        shadow,
+        ..Instrumentation::default()
+    };
     match kind {
         AgentKind::Acs2Vcp(preset) => {
-            let mut agent = crate::agents::vcp::VcpGoalAgent {
+            let agent = crate::agents::vcp::VcpGoalAgent {
                 agent: acs2_agents::acs2vcp::Agent::<S, G, M, _, _, _>::seeded(
                     config, crate::agents::episodic_configuration(Preset::thesis()), preset.parameters(), seed, AGENT_STREAM,
                 ),
                 preset,
                 training_disagreement: Default::default(),
             };
-            run_goal_agent_protocol_with_sink(protocol, &mut agent, seed, targets, metadata, settings.evaluate_points, emit);
-            settings.capture_final_state.then(|| (format!("{:?}", agent.agent.heads().iter().map(|head| head.population().classifiers()).collect::<Vec<_>>()), agent.snapshot()))
+            drive(protocol, agent, instrumentation, actions, inputs, emit, |agent| {
+                (format!("{:?}", agent.agent.heads().iter().map(|head| head.population().classifiers()).collect::<Vec<_>>()), agent.snapshot())
+            })
         }
         AgentKind::Acs2 => {
-            let mut agent = CoreAgent {
+            let agent = CoreAgent {
                 agent: Agent::<M, _>::new(config, agent_rng)
                     .with_truncation_mode(preset.truncation),
                 preset,
@@ -701,16 +926,7 @@ where
                 steps: 0,
                 updates: 0,
             };
-            run_goal_agent_protocol_with_sink(
-                protocol,
-                &mut agent,
-                seed,
-                targets,
-                metadata,
-                settings.evaluate_points,
-                emit,
-            );
-            settings.capture_final_state.then(|| {
+            drive(protocol, agent, instrumentation, actions, inputs, emit, |agent| {
                 let state = acs2_core::checkpoint::Checkpointed::capture(&agent.agent);
                 (
                     format!("{:?}", state.population),
@@ -724,7 +940,7 @@ where
                 min_samples: preset.replay_warmup,
                 samples_number: preset.replay_updates_per_step,
             };
-            let mut agent = CoreAgent {
+            let agent = CoreAgent {
                 agent: Acs2ErAgent::<M, _>::new(config, replay, agent_rng)
                     .with_truncation_mode(preset.truncation),
                 preset,
@@ -732,16 +948,7 @@ where
                 steps: 0,
                 updates: 0,
             };
-            run_goal_agent_protocol_with_sink(
-                protocol,
-                &mut agent,
-                seed,
-                targets,
-                metadata,
-                settings.evaluate_points,
-                emit,
-            );
-            settings.capture_final_state.then(|| {
+            drive(protocol, agent, instrumentation, actions, inputs, emit, |agent| {
                 let state = acs2_core::checkpoint::Checkpointed::capture(&agent.agent);
                 (
                     format!("{:?}", state.population),
@@ -754,7 +961,7 @@ where
                 capacity: preset.replay_capacity,
                 warmup: preset.replay_warmup,
             };
-            let mut adapter = crate::agents::OneUpdateAdapter(CoreAgent {
+            let adapter = crate::agents::OneUpdateAdapter(CoreAgent {
                 agent: acs2_agents::acs2er::one_update::Agent::<M, _>::new(
                     config,
                     replay,
@@ -769,16 +976,7 @@ where
                 steps: 0,
                 updates: 0,
             });
-            run_goal_agent_protocol_with_sink(
-                protocol,
-                &mut adapter,
-                seed,
-                targets,
-                metadata,
-                settings.evaluate_points,
-                emit,
-            );
-            settings.capture_final_state.then(|| {
+            drive(protocol, adapter, instrumentation, actions, inputs, emit, |adapter| {
                 let state = adapter.0.agent.captured_state();
                 (
                     format!("{:?}", state.population),
@@ -787,8 +985,7 @@ where
             })
         }
         AgentKind::Acs2ErEpisodic => {
-            use acs2_agents::episodic_replay::EpisodicAgent;
-            let mut agent = crate::agents::EpisodicGoalAgent(acs2_agents::acs2er::episodic::Agent::<
+            let agent = crate::agents::EpisodicGoalAgent(acs2_agents::acs2er::episodic::Agent::<
                 S,
                 G,
                 M,
@@ -800,24 +997,9 @@ where
                 agent_rng,
                 ChaChaRandomSource::from_seed_and_stream(seed, acs2_trajectory::SAMPLER_STREAM),
             ));
-            run_goal_agent_protocol_with_sink(
-                protocol,
-                &mut agent,
-                seed,
-                targets,
-                metadata,
-                settings.evaluate_points,
-                emit,
-            );
-            settings.capture_final_state.then(|| {
-                (
-                    format!("{:?}", agent.0.learner().population().classifiers()),
-                    agent.0.learner().snapshot(),
-                )
-            })
+            drive(protocol, agent, instrumentation, actions, inputs, emit, episodic_state)
         }
         AgentKind::Acs2Her | AgentKind::Acs2HerNontrivial | AgentKind::Acs2HerShortened | AgentKind::Acs2HerValues { .. } | AgentKind::Acs2HerValuesShortened { .. } => {
-            use acs2_agents::episodic_replay::EpisodicAgent;
             let variant = match kind {
                 AgentKind::Acs2Her => acs2_agents::acs2her::Preset::Acs2Her,
                 AgentKind::Acs2HerNontrivial => acs2_agents::acs2her::Preset::Acs2HerNontrivial,
@@ -830,7 +1012,7 @@ where
                 }
                 _ => unreachable!(),
             };
-            let mut agent =
+            let agent =
                 crate::agents::EpisodicGoalAgent(acs2_agents::acs2her::Agent::<S, G, M, _, _>::new(
                     config,
                     crate::agents::episodic_configuration(preset),
@@ -838,19 +1020,158 @@ where
                     agent_rng,
                     ChaChaRandomSource::from_seed_and_stream(seed, acs2_trajectory::SAMPLER_STREAM),
                 ));
-            run_goal_agent_protocol_with_sink(
-                protocol,
-                &mut agent,
-                seed,
-                targets,
-                metadata,
-                settings.evaluate_points,
-                emit,
-            );
-            settings.capture_final_state.then(|| {
+            drive(protocol, agent, instrumentation, actions, inputs, emit, episodic_state)
+        }
+        AgentKind::Compacting { family, specification } => {
+            let instrumentation = Instrumentation {
+                name: Some(family.name()),
+                compaction: Some(specification),
+                shadow,
+            };
+            run_compacting(protocol, family, specification, instrumentation, inputs, emit)
+        }
+    }
+}
+
+fn run_compacting<T, F, const S: usize, const G: usize, const M: usize>(
+    protocol: &TaskProtocol<'_, T>,
+    family: CompactingFamily,
+    specification: &'static CompactionSpecification,
+    instrumentation: Instrumentation,
+    inputs: RunInputs<'_>,
+    emit: &mut F,
+) -> Option<(String, String)>
+where
+    T: Task<S, G, M>,
+    F: FnMut(Value),
+{
+    use acs2_agents::episodic_replay::compacting::CompactingConfiguration as EpisodicCompacting;
+    let seed = inputs.seed;
+    let task = protocol.training;
+    let preset = Preset::thesis();
+    let config = preset.config(task.actions());
+    let actions = config.number_of_possible_actions;
+    let parameters = specification
+        .parameters()
+        .unwrap_or_else(|error| panic!("{error}"));
+    let replay = ReplayConfiguration {
+        buffer_size: preset.replay_capacity,
+        min_samples: preset.replay_warmup,
+        samples_number: preset.replay_updates_per_step,
+    };
+    match family {
+        CompactingFamily::Acs2 => {
+            let compacting = acs2_agents::acs2::compacting::CompactingConfiguration::new(parameters)
+                .unwrap_or_else(|error| panic!("{error}"));
+            let agent = CoreAgent {
+                agent: acs2_agents::acs2::compacting::CompactingAgent::<M, _, _>::seeded(
+                    config,
+                    preset.truncation,
+                    compacting,
+                    seed,
+                    AGENT_STREAM,
+                ),
+                preset,
+                replay: false,
+                steps: 0,
+                updates: 0,
+            };
+            drive(protocol, agent, instrumentation, actions, inputs, emit, |agent| {
+                let state = acs2_core::checkpoint::Checkpointed::capture(agent.agent.agent());
                 (
-                    format!("{:?}", agent.0.learner().population().classifiers()),
-                    agent.0.learner().snapshot(),
+                    format!("{:?}", state.population),
+                    format!("{:?}", state.rng),
+                )
+            })
+        }
+        CompactingFamily::Acs2Er => {
+            let compacting = acs2_agents::acs2er::compacting::CompactingConfiguration::new(parameters);
+            let agent = CoreAgent {
+                agent: acs2_agents::acs2er::compacting::CompactingAgent::<M, _, _>::seeded(
+                    config,
+                    replay,
+                    preset.truncation,
+                    compacting,
+                    seed,
+                    AGENT_STREAM,
+                ),
+                preset,
+                replay: true,
+                steps: 0,
+                updates: 0,
+            };
+            drive(protocol, agent, instrumentation, actions, inputs, emit, |agent| {
+                let state = acs2_core::checkpoint::Checkpointed::capture(agent.agent.agent());
+                (
+                    format!("{:?}", state.population),
+                    format!("{:?}", state.rng),
+                )
+            })
+        }
+        CompactingFamily::Acs2ErEpisodic => {
+            let agent = crate::agents::compacting::CompactingEpisodicGoalAgent(
+                acs2_agents::acs2er::episodic::compacting::CompactingAgent::<S, G, M, _, _, _>::seeded(
+                    config,
+                    crate::agents::episodic_configuration(preset),
+                    EpisodicCompacting::new(parameters),
+                    seed,
+                    AGENT_STREAM,
+                ),
+            );
+            drive(protocol, agent, instrumentation, actions, inputs, emit, |agent| {
+                (
+                    format!("{:?}", agent.0.population().classifiers()),
+                    acs2_agents::episodic_replay::EpisodicAgent::learner(agent.0.agent()).snapshot(),
+                )
+            })
+        }
+        CompactingFamily::Acs2Her => {
+            let agent = crate::agents::compacting::CompactingEpisodicGoalAgent(
+                acs2_agents::acs2her::compacting::CompactingAgent::<S, G, M, _, _, _>::seeded(
+                    config,
+                    crate::agents::episodic_configuration(preset),
+                    acs2_agents::acs2her::Preset::Acs2Her,
+                    EpisodicCompacting::new(parameters),
+                    seed,
+                    AGENT_STREAM,
+                ),
+            );
+            drive(protocol, agent, instrumentation, actions, inputs, emit, |agent| {
+                (
+                    format!("{:?}", agent.0.population().classifiers()),
+                    acs2_agents::episodic_replay::EpisodicAgent::learner(agent.0.agent()).snapshot(),
+                )
+            })
+        }
+        CompactingFamily::Acs2Vcp(vcp_preset) => {
+            let configuration = specification
+                .vcp_configuration()
+                .unwrap_or_else(|error| panic!("{error}"));
+            let agent = crate::agents::compacting::CompactingVcpGoalAgent {
+                agent: acs2_agents::acs2vcp::compacting::CompactingAgent::<S, G, M, _, _, _, _>::seeded(
+                    config,
+                    crate::agents::episodic_configuration(preset),
+                    vcp_preset.parameters(),
+                    configuration,
+                    seed,
+                    AGENT_STREAM,
+                ),
+                preset: vcp_preset,
+                training_disagreement: Default::default(),
+            };
+            drive(protocol, agent, instrumentation, actions, inputs, emit, |agent| {
+                (
+                    format!(
+                        "{:?}",
+                        agent
+                            .agent
+                            .agent()
+                            .heads()
+                            .iter()
+                            .map(|head| head.population().classifiers())
+                            .collect::<Vec<_>>()
+                    ),
+                    agent.snapshot(),
                 )
             })
         }
@@ -1217,6 +1538,12 @@ fn run_inner<T, A, F, const S: usize, const G: usize, const M: usize>(
                     }
                 }
             }
+        }
+        if let Some(diagnostics) = agent.compaction_diagnostics() {
+            row["compaction"] = diagnostics;
+        }
+        if let Some(diagnostics) = agent.compaction_shadow_diagnostics() {
+            row["compaction_shadow"] = diagnostics;
         }
         eval_elapsed += eval_started.elapsed();
         row["wall_seconds_eval"] = json!(eval_elapsed.as_secs_f64());

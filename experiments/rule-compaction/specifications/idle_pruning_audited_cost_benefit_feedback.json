@@ -1,0 +1,64 @@
+{
+  "mode": "apply",
+  "clock": "per_head",
+  "theta_r": 0.9,
+  "operators": [
+    {
+      "kind": "mature_subsumption",
+      "guarded": true
+    },
+    {
+      "kind": "idle_pruning",
+      "min_experience": 5
+    }
+  ],
+  "trigger": {
+    "kind": "cost_benefit",
+    "prior_yield_permille": 200,
+    "yield_floor_permille": 20,
+    "margin_permille": 1000
+  },
+  "strength": {
+    "value_tolerance": 0.0,
+    "maturity_experience": 40,
+    "idle_audits": 3
+  },
+  "strength_bounds": {
+    "gentlest": {
+      "value_tolerance": 0.0,
+      "maturity_experience": 60,
+      "idle_audits": 4
+    },
+    "boldest": {
+      "value_tolerance": 20.0,
+      "maturity_experience": 20,
+      "idle_audits": 1
+    },
+    "step": {
+      "value_tolerance": 5.0,
+      "maturity_experience": 10,
+      "idle_audits": 1
+    }
+  },
+  "feedback": {
+    "low_yield_permille": 20,
+    "high_yield_permille": 200,
+    "restored_bound_permille": 100,
+    "minimum_holdoff": 10000,
+    "initial_holdoff": 50000,
+    "maximum_holdoff": 400000
+  },
+  "phase_modulation": null,
+  "audit": {
+    "policy": "enforce",
+    "max_coverage_loss": 0.005,
+    "max_no_change_coverage_loss": 0.005,
+    "max_value_change": 25.0,
+    "max_greedy_change_fraction": 0.02
+  },
+  "evidence_sample": 1000,
+  "census": true,
+  "acceptance_limits": null,
+  "disagreement_probe": null,
+  "max_records_per_row": 200
+}

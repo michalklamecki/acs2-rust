@@ -1,0 +1,32 @@
+{
+  "mode": "apply",
+  "clock": "per_head",
+  "theta_r": 0.9,
+  "operators": [
+    {
+      "kind": "mature_subsumption",
+      "guarded": true
+    }
+  ],
+  "trigger": {
+    "kind": "growth",
+    "ratio_permille": 1500,
+    "minimum_reference": 200
+  },
+  "strength": {
+    "value_tolerance": 0.0,
+    "maturity_experience": 20,
+    "idle_audits": 1
+  },
+  "strength_bounds": null,
+  "feedback": null,
+  "phase_modulation": null,
+  "audit": {
+    "policy": "skip"
+  },
+  "evidence_sample": 0,
+  "census": true,
+  "acceptance_limits": null,
+  "disagreement_probe": null,
+  "max_records_per_row": 200
+}

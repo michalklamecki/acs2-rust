@@ -2,6 +2,8 @@
 
 pub mod agent_names;
 pub mod agents;
+pub mod compaction_report;
+pub mod compaction_spec;
 pub mod goal_protocol;
 pub mod knowledge;
 pub mod pair_protocol;

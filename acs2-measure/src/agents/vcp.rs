@@ -62,6 +62,29 @@ fn marks<const M: usize>(
         .sum()
 }
 
+pub struct VcpView<'a, const S: usize, const G: usize, const M: usize, R, P, A> {
+    pub agent: &'a acs2vcp::Agent<S, G, M, R, P, A>,
+    pub training_disagreement: &'a TrainingDisagreement,
+    pub measurement_inline_bytes: usize,
+}
+
+pub fn record_avoided_work<const S: usize, const G: usize, const M: usize, R, P, A>(
+    disagreement: &mut TrainingDisagreement,
+    agent: &acs2vcp::Agent<S, G, M, R, P, A>,
+    proposals_before: u64,
+    classifiers_before: usize,
+) where
+    R: RandomSource,
+    P: RandomSource,
+    A: RandomSource,
+{
+    if agent.parameters().temperature == 0 && agent.heads().len() > 1 {
+        let proposals = agent.priority_counts().proposals - proposals_before;
+        disagreement.avoided_value_queries += proposals * agent.heads().len() as u64;
+        disagreement.avoided_classifier_tests += proposals * classifiers_before as u64;
+    }
+}
+
 impl<
         const S: usize,
         const G: usize,
@@ -69,101 +92,40 @@ impl<
         R: RandomSource,
         P: RandomSource,
         A: RandomSource,
-    > GoalAgent<S, G, M> for VcpGoalAgent<S, G, M, R, P, A>
+    > VcpView<'_, S, G, M, R, P, A>
 {
-    fn name(&self) -> &'static str {
-        self.preset.name()
+    pub fn evaluation_heads(&self) -> usize {
+        self.agent.heads().len()
     }
-    fn train_episode<E: MeasuredEnvironment<S, G, M>>(&mut self, env: &mut E, time: u64) {
-        let proposals_before = self.agent.priority_counts().proposals;
-        let classifiers_before = self.population_classifiers();
-        let diagnostic = &mut self.training_disagreement;
-        self.agent.train_episode_observed(
-            &mut EpisodeAdapter::<_, M>(env),
-            time,
-            &mut |variance, accepted| diagnostic.record(variance, accepted),
-        );
-        if self.agent.parameters().temperature == 0 && self.agent.heads().len() > 1 {
-            let proposals = self.agent.priority_counts().proposals - proposals_before;
-            self.training_disagreement.avoided_value_queries +=
-                proposals * self.agent.heads().len() as u64;
-            self.training_disagreement.avoided_classifier_tests +=
-                proposals * classifiers_before as u64;
-        }
-    }
-    fn declared_policy(&self) -> &'static str {
+    pub fn declared_policy(&self) -> &'static str {
         if self.agent.heads().len() == 1 {
             "greedy_change_anticipating_population"
         } else {
             "mean_of_heads_greedy_change_anticipating_success"
         }
     }
-    fn evaluation_heads(&self) -> usize {
-        self.agent.heads().len()
-    }
-    fn eval_action(&self, state: &Perception<M>, rng: &mut dyn RandomSource) -> (usize, f64) {
-        assert_eq!(
-            self.evaluation_heads(),
-            1,
-            "ensemble evaluation must name its head"
-        );
-        self.agent.greedy_action(0, state, rng)
-    }
-    fn eval_head_action(
-        &self,
-        head: usize,
-        state: &Perception<M>,
-        rng: &mut dyn RandomSource,
-    ) -> (usize, f64) {
-        self.agent.greedy_action(head, state, rng)
-    }
-    fn online_updates(&self) -> u64 {
-        0
-    }
-    fn replay_updates(&self) -> u64 {
-        let counts = self.agent.counts();
-        counts.full + counts.values_only
-    }
-    fn learning_update_counts(&self) -> Option<Value> {
-        let counts = self.agent.counts();
-        Some(
-            json!({"full": counts.full, "values_only": counts.values_only, "skipped_warmup_steps": counts.skipped_warmup_steps}),
-        )
-    }
-    fn replay_samples(&self) -> usize {
-        0
-    }
-    fn replay_logical_bytes(&self) -> usize {
-        0
-    }
-    fn trajectory_logical_bytes(&self) -> usize {
-        self.agent.store().logical_bytes()
-    }
-    fn population_classifiers(&self) -> usize {
+    pub fn population_classifiers(&self) -> usize {
         self.agent
             .heads()
             .iter()
             .map(|head| head.population().len())
             .sum()
     }
-    fn population_numerosity(&self) -> u32 {
+    pub fn population_numerosity(&self) -> u32 {
         self.agent
             .heads()
             .iter()
             .map(|head| head.population().numerosity())
             .sum()
     }
-    fn population_logical_bytes(&self) -> usize {
-        self.population_classifiers() * size_of::<Classifier<M>>()
-    }
-    fn population_mark_entries(&self) -> usize {
+    pub fn population_mark_entries(&self) -> usize {
         self.agent
             .heads()
             .iter()
             .map(|head| marks(head.population()))
             .sum()
     }
-    fn knowledge(&self, transitions: &[Transition<M>]) -> Option<f64> {
+    pub fn knowledge(&self, transitions: &[Transition<M>]) -> f64 {
         let sum: f64 = self
             .agent
             .heads()
@@ -178,9 +140,9 @@ impl<
                 )
             })
             .sum();
-        Some(sum / self.evaluation_heads() as f64)
+        sum / self.evaluation_heads() as f64
     }
-    fn head_disagreement(&self, transitions: &[Transition<M>]) -> Option<Value> {
+    pub fn head_disagreement(&self, transitions: &[Transition<M>]) -> Option<Value> {
         if self.evaluation_heads() == 1 {
             return None;
         }
@@ -209,7 +171,7 @@ impl<
             json!(std::mem::size_of_val(transitions));
         Some(diagnostic)
     }
-    fn ensemble_diagnostics(&self, transitions: Option<&[Transition<M>]>) -> Option<Value> {
+    pub fn ensemble_diagnostics(&self, transitions: Option<&[Transition<M>]>) -> Value {
         let mut total_head_bytes = 0;
         let heads: Vec<_> = self.agent.heads().iter().enumerate().map(|(index, head)| {
             let population = head.population();
@@ -231,12 +193,12 @@ impl<
         let mut diagnostics = json!({"heads": heads, "head_count": heads.len(), "heads_known_bytes_lower_bound": total_head_bytes,
             "mean_population_classifiers": self.population_classifiers() as f64 / heads.len() as f64,
             "mean_population_numerosity": f64::from(self.population_numerosity()) / heads.len() as f64,
-            "agent_known_bytes_lower_bound": total_head_bytes + self.trajectory_logical_bytes()
+            "agent_known_bytes_lower_bound": total_head_bytes + self.agent.store().logical_bytes()
                 + size_of::<acs2vcp::Agent<S, G, M, R, P, A>>() - size_of::<acs2_trajectory::TrajectoryStore<S, G>>(),
             "pending_sample_bytes": 0, "batch_peak_bytes": self.agent.priority_counts().batch_peak_bytes,
             "memory_scope": "logical_payload_and_inline_headers_excludes_unused_capacity_and_allocator_overhead"});
         if self.evaluation_heads() > 1 {
-            let extra = size_of::<Self>() - size_of::<acs2vcp::Agent<S, G, M, R, P, A>>();
+            let extra = self.measurement_inline_bytes;
             diagnostics["measurement_diagnostics_inline_bytes"] = json!(extra);
             diagnostics["agent_and_measurement_known_bytes_lower_bound"] = json!(
                 diagnostics["agent_known_bytes_lower_bound"]
@@ -245,10 +207,10 @@ impl<
                     + extra as u64
             );
         }
-        Some(diagnostics)
+        diagnostics
     }
-    fn replay_diagnostics(&self) -> Option<Value> {
-        let agent = &self.agent;
+    pub fn replay_diagnostics(&self) -> Value {
+        let agent = self.agent;
         let mut accepted = agent.accepted_counters().clone();
         accepted.cost = agent.sampler().counters().cost;
         let mut diagnostics = crate::trajectory::replay_diagnostics(&accepted);
@@ -295,9 +257,9 @@ impl<
                     json!(self.training_disagreement.avoided_classifier_tests);
             }
         }
-        Some(diagnostics)
+        diagnostics
     }
-    fn agent_parameters(&self) -> Value {
+    pub fn agent_parameters(&self) -> Value {
         let parameters = self.agent.parameters();
         let replay = self.agent.replay_configuration();
         json!({"replay": true, "schedule": "after_complete_episode", "heads": parameters.heads,
@@ -314,5 +276,125 @@ impl<
             "draws": "proposal_reweighted_by_fresh_consistency_priority", "importance_weights": "none",
             "priority_clock": "all_draws_before_any_learning_in_episode", "learning_clock": "episode_end_environment_steps",
             "acting_head": "episode_index_modulo_head_count", "learning_head": "acting_head"})
+    }
+}
+
+impl<
+        const S: usize,
+        const G: usize,
+        const M: usize,
+        R: RandomSource,
+        P: RandomSource,
+        A: RandomSource,
+    > VcpGoalAgent<S, G, M, R, P, A>
+{
+    fn view(&self) -> VcpView<'_, S, G, M, R, P, A> {
+        VcpView {
+            agent: &self.agent,
+            training_disagreement: &self.training_disagreement,
+            measurement_inline_bytes: size_of::<Self>()
+                - size_of::<acs2vcp::Agent<S, G, M, R, P, A>>(),
+        }
+    }
+}
+
+impl<
+        const S: usize,
+        const G: usize,
+        const M: usize,
+        R: RandomSource,
+        P: RandomSource,
+        A: RandomSource,
+    > GoalAgent<S, G, M> for VcpGoalAgent<S, G, M, R, P, A>
+{
+    fn name(&self) -> &'static str {
+        self.preset.name()
+    }
+    fn train_episode<E: MeasuredEnvironment<S, G, M>>(&mut self, env: &mut E, time: u64) {
+        let proposals_before = self.agent.priority_counts().proposals;
+        let classifiers_before = self.population_classifiers();
+        let diagnostic = &mut self.training_disagreement;
+        self.agent.train_episode_observed(
+            &mut EpisodeAdapter::<_, M>(env),
+            time,
+            &mut |variance, accepted| diagnostic.record(variance, accepted),
+        );
+        record_avoided_work(
+            &mut self.training_disagreement,
+            &self.agent,
+            proposals_before,
+            classifiers_before,
+        );
+    }
+    fn declared_policy(&self) -> &'static str {
+        self.view().declared_policy()
+    }
+    fn evaluation_heads(&self) -> usize {
+        self.agent.heads().len()
+    }
+    fn eval_action(&self, state: &Perception<M>, rng: &mut dyn RandomSource) -> (usize, f64) {
+        assert_eq!(
+            self.evaluation_heads(),
+            1,
+            "ensemble evaluation must name its head"
+        );
+        self.agent.greedy_action(0, state, rng)
+    }
+    fn eval_head_action(
+        &self,
+        head: usize,
+        state: &Perception<M>,
+        rng: &mut dyn RandomSource,
+    ) -> (usize, f64) {
+        self.agent.greedy_action(head, state, rng)
+    }
+    fn online_updates(&self) -> u64 {
+        0
+    }
+    fn replay_updates(&self) -> u64 {
+        let counts = self.agent.counts();
+        counts.full + counts.values_only
+    }
+    fn learning_update_counts(&self) -> Option<Value> {
+        let counts = self.agent.counts();
+        Some(
+            json!({"full": counts.full, "values_only": counts.values_only, "skipped_warmup_steps": counts.skipped_warmup_steps}),
+        )
+    }
+    fn replay_samples(&self) -> usize {
+        0
+    }
+    fn replay_logical_bytes(&self) -> usize {
+        0
+    }
+    fn trajectory_logical_bytes(&self) -> usize {
+        self.agent.store().logical_bytes()
+    }
+    fn population_classifiers(&self) -> usize {
+        self.view().population_classifiers()
+    }
+    fn population_numerosity(&self) -> u32 {
+        self.view().population_numerosity()
+    }
+    fn population_logical_bytes(&self) -> usize {
+        self.population_classifiers() * size_of::<Classifier<M>>()
+    }
+    fn population_mark_entries(&self) -> usize {
+        self.view().population_mark_entries()
+    }
+    fn knowledge(&self, transitions: &[Transition<M>]) -> Option<f64> {
+        Some(self.view().knowledge(transitions))
+    }
+    fn head_disagreement(&self, transitions: &[Transition<M>]) -> Option<Value> {
+        self.view().head_disagreement(transitions)
+    }
+    fn ensemble_diagnostics(&self, transitions: Option<&[Transition<M>]>) -> Option<Value> {
+        Some(self.view().ensemble_diagnostics(transitions))
+    }
+    fn replay_diagnostics(&self) -> Option<Value> {
+        Some(self.view().replay_diagnostics())
+    }
+    fn agent_parameters(&self) -> Value {
+        self.view().agent_parameters()
     }
 }

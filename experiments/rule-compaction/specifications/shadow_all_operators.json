@@ -1,0 +1,145 @@
+{
+  "theta_r": 0.9,
+  "evidence_sample": 2000,
+  "audit": {
+    "max_coverage_loss": 0.0,
+    "max_no_change_coverage_loss": 0.0,
+    "max_value_change": 0.0,
+    "max_greedy_change_fraction": 0.0
+  },
+  "census": true,
+  "entries": [
+    {
+      "label": "mature_subsumption_exact",
+      "operators": [
+        {
+          "kind": "mature_subsumption",
+          "guarded": true
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "mature_subsumption_tolerant",
+      "operators": [
+        {
+          "kind": "mature_subsumption",
+          "guarded": true
+        }
+      ],
+      "strength": {
+        "value_tolerance": 5.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "cracs_subsumption_blind",
+      "operators": [
+        {
+          "kind": "cracs_subsumption",
+          "guarded": false
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "cracs_subsumption_guarded",
+      "operators": [
+        {
+          "kind": "cracs_subsumption",
+          "guarded": true
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "idle_pruning_single_audit",
+      "operators": [
+        {
+          "kind": "idle_pruning",
+          "min_experience": 5
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "idle_pruning_three_audits",
+      "operators": [
+        {
+          "kind": "idle_pruning",
+          "min_experience": 5
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 3
+      }
+    },
+    {
+      "label": "dynamic_thresholds",
+      "operators": [
+        {
+          "kind": "dynamic_thresholds",
+          "size_threshold": 1000,
+          "experience_threshold": 20,
+          "quality_threshold": 0.5
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "capacity_half_of_ten_thousand",
+      "operators": [
+        {
+          "kind": "capacity",
+          "capacity": 5000
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "mature_subsumption_then_idle_pruning",
+      "operators": [
+        {
+          "kind": "mature_subsumption",
+          "guarded": true
+        },
+        {
+          "kind": "idle_pruning",
+          "min_experience": 5
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 3
+      }
+    }
+  ]
+}

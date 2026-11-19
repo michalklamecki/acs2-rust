@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 use acs2_core::checkpoint::Checkpointed;
 use acs2_core::compaction::{
     subsample_indices, CompactionController, CompactionMode, CompactionParameters,
@@ -90,10 +92,11 @@ impl<const N: usize> CompactingAgent<N, ChaChaRandomSource, ChaChaRandomSource> 
         replay: ReplayConfiguration,
         truncation: TruncationMode,
         compacting: CompactingConfiguration,
+        goal_attributes: Range<usize>,
         seed: u64,
         agent_stream: u64,
     ) -> Self {
-        Self::new(
+        Self::with_goal_attributes(
             Agent::new(
                 config,
                 replay,
@@ -102,15 +105,25 @@ impl<const N: usize> CompactingAgent<N, ChaChaRandomSource, ChaChaRandomSource> 
             .with_truncation_mode(truncation),
             compacting,
             ChaChaRandomSource::from_seed_and_stream(seed, COMPACTION_STREAM),
+            goal_attributes,
         )
     }
 }
 
 impl<const N: usize, R: RandomSource, C: RandomSource> CompactingAgent<N, R, C> {
     pub fn new(agent: Agent<N, R>, configuration: CompactingConfiguration, rng: C) -> Self {
+        Self::with_goal_attributes(agent, configuration, rng, 0..0)
+    }
+
+    pub fn with_goal_attributes(
+        agent: Agent<N, R>,
+        configuration: CompactingConfiguration,
+        rng: C,
+        goal_attributes: Range<usize>,
+    ) -> Self {
         let geometry = TaskGeometry {
             actions: agent.config().number_of_possible_actions,
-            goal_attributes: 0..0,
+            goal_attributes,
         };
         let compaction =
             SingleHeadCompaction::new(configuration.compaction.clone(), geometry, rng);

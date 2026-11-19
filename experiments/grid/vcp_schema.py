@@ -25,11 +25,12 @@ def validate_variance(summary, count):
         raise ValueError('VCP variance summary is outside the value scale')
 
 
-def validate_vcp(row, config, agent):
+def validate_vcp(row, config, agent, settings=None):
     if agent not in AGENTS:
         raise ValueError('unregistered VCP arm')
     heads = 2 if '_k2' in agent else 4
-    temperature = 0 if agent.endswith('_uniform') else config.get('agent_settings', {}).get(agent, {}).get('temperature', 1)
+    settings = config.get('agent_settings', {}).get(agent, {}) if settings is None else settings
+    temperature = 0 if agent.endswith('_uniform') else settings.get('temperature', 1)
     if not 0 <= temperature <= 24 or (temperature == 0) != agent.endswith('_uniform'):
         raise ValueError('unregistered VCP temperature')
     parameters = row['agent_parameters']

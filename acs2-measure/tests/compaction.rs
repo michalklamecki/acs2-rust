@@ -608,7 +608,13 @@ fn every_example_specification_parses_and_fits_the_families_it_is_meant_for() {
         let name = path.file_name().unwrap().to_str().unwrap().to_owned();
         if name.starts_with("shadow_") {
             let specification = ShadowSpecification::from_path(&path).unwrap();
-            assert!(specification.entries().unwrap().len() >= 6, "{name}");
+            if name.ends_with("_without_evidence.json") {
+                assert_eq!(specification.evidence_sample, 0, "{name}");
+                assert!(specification.audit.is_none(), "{name}");
+                assert!(!specification.entries().unwrap().is_empty(), "{name}");
+            } else {
+                assert!(specification.entries().unwrap().len() >= 6, "{name}");
+            }
         } else {
             let specification = CompactionSpecification::from_path(&path).unwrap();
             for family in [Family::Acs2Er, Family::Episodic, Family::Vcp] {
@@ -623,5 +629,5 @@ fn every_example_specification_parses_and_fits_the_families_it_is_meant_for() {
         }
         checked += 1;
     }
-    assert_eq!(checked, 6);
+    assert_eq!(checked, 13);
 }

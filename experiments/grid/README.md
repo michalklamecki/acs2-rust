@@ -49,6 +49,16 @@ allocation CPU and process CPU are reported separately.
 Archived scope accounting includes every root once, explicitly records zero
 for empty roots and takes pilot cost from the registered scope.
 
+`compaction_schema.py` teaches the validators the eight compacting run names
+(`acs2_compacting`, `acs2er_compacting`, `acs2er_episodic_compacting`, `acs2her_compacting`
+and the four `acs2vcp_*_compacting` names). `agent_names.plain_family` maps each to its plain
+family, so a compacting row is validated like that family plus the `compaction` report and the
+`agent_parameters.compaction` echo, with the identity `training_cost.match_formations ==
+match_formations_train`. A `compaction_shadow` report is accepted on any row when present
+and required when `agent_settings[run].compaction_shadow` is registered. A plain name with a
+`compaction` key is refused. `compacting_rows.json` holds real seed-42 rows used by the tests.
+Passing `compaction_shadow` to the measurement command is not wired into `collect.py` yet.
+
 `agent_names.json` is the sole archived-to-current run-name mapping. Both the Rust
 fixture/CLI reader and `agent_names.py` consume it. Row collection and replay validation
 accept either spelling when reading archived data; identity and learning-field comparisons

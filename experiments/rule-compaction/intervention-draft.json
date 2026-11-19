@@ -1,0 +1,180 @@
+{
+  "schema": 1,
+  "stage": "draft_not_approved",
+  "approved": false,
+  "experiment": "rule-compaction",
+  "measurement": "single_reduction",
+  "not_approved": "This is a draft. It must not be submitted, pilot included. The operators, the agents and the intervention points are placeholders until the shadow measurement has been analysed and its gate has chosen at most three operators.",
+  "purpose": "Apply one reduction early, in the middle or late in learning, then let learning continue unchanged. Measure regrowth of the population, the share of removed rules that return, the recovery of knowledge and success, and the matching tests saved.",
+  "protocol": "maze-pairs-v1",
+  "pair_protocol_sha256": "eb1d2c01669b4471f68cbc1f671b81fea77e71cfc8e72b75e4f17cd5dcf6b189",
+  "split": {
+    "tuning": {
+      "mazes": [
+        "mazema_c9_pairs",
+        "woods14_c18_pairs",
+        "maze4_c5_pairs"
+      ],
+      "block": "validation"
+    }
+  },
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51
+  ],
+  "seeds_rule": "At least ten seeds. After a reduction the trajectories diverge, because action selection draws randomness in proportion to the number of matching rules, so the comparison is statistical.",
+  "operator": "mature_subsumption exact (guarded, tolerance 0) as the base specification mature_subsumption_exact_once.json; the operator set is revisited after the shadow gate",
+  "interventions": {
+    "early": {
+      "interaction": 50000,
+      "with_evidence": "specifications/single_reduction_early.json",
+      "with_evidence_sha256": "2434e75b401c0785b21cdb97f5fa555098d25587b06fe84bee22dfb95e7eed20",
+      "without_evidence": "specifications/single_reduction_early_without_evidence.json",
+      "without_evidence_sha256": "1d5dc154ba06b23b962b421564378d1a3249787bef818b42988ac9a5408d3b38"
+    },
+    "middle": {
+      "interaction": 500000,
+      "with_evidence": "specifications/single_reduction_middle.json",
+      "with_evidence_sha256": "93fdac78b732f161277b39a19c3213b08c7054484344d163b4f74ff0caaef583",
+      "without_evidence": "specifications/single_reduction_middle_without_evidence.json",
+      "without_evidence_sha256": "6755f72430d208876286cbc3983b719827800371c8d69777c9f73c3467a94b10"
+    },
+    "late": {
+      "interaction": 1500000,
+      "with_evidence": "specifications/single_reduction_late.json",
+      "with_evidence_sha256": "a2a554ac61847ce6d7817c723b8ae776e6087a424520868a706809bc7f03d7ce",
+      "without_evidence": "specifications/single_reduction_late_without_evidence.json",
+      "without_evidence_sha256": "a076ba983fddd5f14da9ddcd18a366d146a1a5db4c2eb66bfe0d4501abe382ca"
+    }
+  },
+  "candidate_agents": [
+    "acs2_compacting",
+    "acs2er_compacting",
+    "acs2her_compacting",
+    "acs2vcp_k2_compacting",
+    "acs2vcp_k4_compacting",
+    "acs2vcp_k2_uniform_compacting",
+    "acs2vcp_k4_uniform_compacting"
+  ],
+  "agents_rule": "Narrowed by the shadow gate; ACS2 uses the without-evidence specifications.",
+  "agent_settings": {
+    "acs2_compacting": {},
+    "acs2er_compacting": {},
+    "acs2her_compacting": {},
+    "acs2vcp_k2_compacting": {
+      "temperature": 24
+    },
+    "acs2vcp_k4_compacting": {
+      "temperature": 24
+    },
+    "acs2vcp_k2_uniform_compacting": {},
+    "acs2vcp_k4_uniform_compacting": {}
+  },
+  "configurations": [
+    {
+      "id": "mazema_c9_pairs",
+      "task": "mazema",
+      "cap": 9,
+      "pool": "full",
+      "row_pool": "full",
+      "encoding": "coordinates",
+      "row_schema": 5,
+      "protocol": "maze-pairs-v1",
+      "knowledge_transition_goal_pairs": 476,
+      "budget_steps": 2000000,
+      "targets": [
+        1000,
+        3000,
+        10000,
+        30000,
+        100000,
+        300000,
+        1000000,
+        2000000
+      ],
+      "evaluation_blocks": [
+        "validation"
+      ]
+    },
+    {
+      "id": "woods14_c18_pairs",
+      "task": "woods14",
+      "cap": 18,
+      "pool": "full",
+      "row_pool": "full",
+      "encoding": "coordinates",
+      "row_schema": 5,
+      "protocol": "maze-pairs-v1",
+      "knowledge_transition_goal_pairs": 648,
+      "budget_steps": 4000000,
+      "targets": [
+        1000,
+        3000,
+        10000,
+        30000,
+        100000,
+        300000,
+        1000000,
+        2000000,
+        4000000
+      ],
+      "evaluation_blocks": [
+        "validation"
+      ]
+    },
+    {
+      "id": "maze4_c5_pairs",
+      "task": "maze4",
+      "cap": 5,
+      "pool": "full",
+      "row_pool": "full",
+      "encoding": "coordinates",
+      "row_schema": 5,
+      "protocol": "maze-pairs-v1",
+      "knowledge_transition_goal_pairs": 3068,
+      "budget_steps": 2000000,
+      "targets": [
+        1000,
+        3000,
+        10000,
+        30000,
+        100000,
+        300000,
+        1000000,
+        2000000
+      ],
+      "evaluation_blocks": [
+        "validation"
+      ]
+    }
+  ],
+  "runs_per_agent": 90,
+  "controls": {
+    "reference": "the same agent without compaction on the same seeds and mazes",
+    "reuse": "Shadow runs leave learning unchanged, so seeds 42-46 of the shadow measurement are valid controls once their identity is verified; seeds 47-51 need new plain runs."
+  },
+  "measures": [
+    "population size after the reduction and its regrowth",
+    "share of removed rules that are recreated (removal ledger restoration)",
+    "knowledge and held-out success against the control at every checkpoint",
+    "matching tests saved, net of compaction work"
+  ],
+  "gate": "A lasting net saving without a delay in learning, and a map of the moments at which a reduction hurts.",
+  "budget": {
+    "plan_estimate_cpu_hours": 20,
+    "status": "estimate from the plan, not a forecast; a forecast comes from the pilot of the approved agent set"
+  },
+  "before_cluster_use": [
+    "Analyse the shadow measurement and apply its gate.",
+    "Replace the placeholders, register the final agent set, operators and points, and have the user approve the registration.",
+    "Run the seed-42 cost pilot first; check the grant before every submission."
+  ]
+}

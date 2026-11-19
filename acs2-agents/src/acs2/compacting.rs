@@ -1,4 +1,5 @@
 use core::fmt;
+use core::ops::Range;
 use std::error::Error;
 
 use acs2_core::checkpoint::Checkpointed;
@@ -108,10 +109,11 @@ impl<const N: usize> CompactingAgent<N, ChaChaRandomSource, ChaChaRandomSource> 
         config: Configuration,
         truncation: TruncationMode,
         compacting: CompactingConfiguration,
+        goal_attributes: Range<usize>,
         seed: u64,
         agent_stream: u64,
     ) -> Self {
-        Self::new(
+        Self::with_goal_attributes(
             Agent::new(
                 config,
                 ChaChaRandomSource::from_seed_and_stream(seed, agent_stream),
@@ -119,15 +121,25 @@ impl<const N: usize> CompactingAgent<N, ChaChaRandomSource, ChaChaRandomSource> 
             .with_truncation_mode(truncation),
             compacting,
             ChaChaRandomSource::from_seed_and_stream(seed, COMPACTION_STREAM),
+            goal_attributes,
         )
     }
 }
 
 impl<const N: usize, R: RandomSource, C: RandomSource> CompactingAgent<N, R, C> {
     pub fn new(agent: Agent<N, R>, configuration: CompactingConfiguration, rng: C) -> Self {
+        Self::with_goal_attributes(agent, configuration, rng, 0..0)
+    }
+
+    pub fn with_goal_attributes(
+        agent: Agent<N, R>,
+        configuration: CompactingConfiguration,
+        rng: C,
+        goal_attributes: Range<usize>,
+    ) -> Self {
         let geometry = TaskGeometry {
             actions: agent.config().number_of_possible_actions,
-            goal_attributes: 0..0,
+            goal_attributes,
         };
         let compaction =
             SingleHeadCompaction::new(configuration.compaction.clone(), geometry, rng);
@@ -487,6 +499,38 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn the_census_counts_rules_specific_in_the_goal_attributes() {
+        let strength = CompactionStrength {
+            value_tolerance: 0.0,
+            maturity_experience: 20,
+            idle_audits: 1,
+        };
+        let policy = fixed_strength_policy(Periodic::new(3).unwrap(), strength).unwrap();
+        let parameters = CompactionParameters::builder(0.3, policy)
+            .mode(CompactionMode::Shadow)
+            .operator(Operator::MatureSubsumption { guarded: true })
+            .census(true)
+            .build()
+            .unwrap();
+        let goal_specific = |goal_attributes: Range<usize>| {
+            let mut wrapped = Compacting::with_goal_attributes(
+                plain(false, TruncationMode::Bootstrap),
+                CompactingConfiguration::new(parameters.clone()).unwrap(),
+                ChaChaRandomSource::from_seed_and_stream(42, COMPACTION_STREAM),
+                goal_attributes,
+            );
+            train(&mut wrapped, 3, false);
+            wrapped.reduction_records()[0]
+                .census_before
+                .as_ref()
+                .unwrap()
+                .goal_specific
+        };
+        assert_eq!(goal_specific(0..0), 0);
+        assert_eq!(goal_specific(1..2), 2);
     }
 
     #[test]

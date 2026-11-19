@@ -1,6 +1,7 @@
 import math
 
-from agent_names import agent_settings, canonical_run_name
+from agent_names import agent_settings, canonical_run_name, plain_family
+from compaction_schema import validate_compaction
 from vcp_schema import validate_vcp
 
 EVALUATION_FIELDS = ('success', 'random_floor', 'reachable_within_cap', 'reachable_after_cap',
@@ -66,8 +67,11 @@ def validate_blocks(row, config):
 
 def validate_replay(row, config, agent):
     agent = canonical_run_name(agent)
+    validate_compaction(row, config, agent)
+    run = agent
+    agent = plain_family(run)
     if agent.startswith('acs2vcp'):
-        validate_vcp(row, config, agent)
+        validate_vcp(row, config, agent, config.get('agent_settings', {}).get(run, {}))
         return
     restricted_full = agent in ('acs2her_nontrivial', 'acs2her_shortened')
     if agent not in ('acs2er_episodic', 'acs2her', 'acs2her_values', 'acs2her_values_shortened', 'acs2er_one_update') and not restricted_full:
@@ -117,11 +121,11 @@ def validate_replay(row, config, agent):
                     warmup_rule='retained_steps_after_episode_insertion_at_least_warmup_no_backpay',
                     admissibility='CounterfactualEpisode' if agent == 'acs2her_values_shortened' else 'EveryTransition',
                     copy_update='Full' if agent in ('acs2er_episodic', 'acs2her') else 'ValuesOnly',
-                    relabeled_proportion=0.0 if agent == 'acs2er_episodic' else agent_settings(config, agent).get('relabeled_proportion', 2 / 3))
+                    relabeled_proportion=0.0 if agent == 'acs2er_episodic' else agent_settings(config, run).get('relabeled_proportion', 2 / 3))
     if restricted_full:
         expected.update(copy_update='Full', relabeled_proportion=2 / 3,
                         admissibility='FromNonGoalState' if agent == 'acs2her_nontrivial' else 'CounterfactualEpisode')
-        if (set(parameters) != set(expected) or agent_settings(config, agent)
+        if (set(parameters) != set(expected) or agent_settings(config, run)
                 or any(type(parameters[key]) is not type(value) for key, value in expected.items())):
             raise ValueError('restricted full hindsight presets have fixed parameters')
     if any(parameters.get(key) != value for key, value in expected.items()):

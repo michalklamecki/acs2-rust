@@ -1,0 +1,80 @@
+{
+  "theta_r": 0.9,
+  "evidence_sample": 0,
+  "audit": null,
+  "census": true,
+  "entries": [
+    {
+      "label": "mature_subsumption_exact",
+      "operators": [
+        {
+          "kind": "mature_subsumption",
+          "guarded": true
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "mature_subsumption_tolerant",
+      "operators": [
+        {
+          "kind": "mature_subsumption",
+          "guarded": true
+        }
+      ],
+      "strength": {
+        "value_tolerance": 5.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "cracs_subsumption_blind",
+      "operators": [
+        {
+          "kind": "cracs_subsumption",
+          "guarded": false
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "cracs_subsumption_guarded",
+      "operators": [
+        {
+          "kind": "cracs_subsumption",
+          "guarded": true
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    },
+    {
+      "label": "dynamic_thresholds",
+      "operators": [
+        {
+          "kind": "dynamic_thresholds",
+          "size_threshold": 1000,
+          "experience_threshold": 20,
+          "quality_threshold": 0.5
+        }
+      ],
+      "strength": {
+        "value_tolerance": 0.0,
+        "maturity_experience": 20,
+        "idle_audits": 1
+      }
+    }
+  ]
+}

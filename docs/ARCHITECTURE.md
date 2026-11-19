@@ -4713,3 +4713,144 @@ where in an effect `#` means "no change". Do not port from it.
   check this on random populations, and `acs2-agents/tests/rule_compaction.rs` checks it on a
   trained Maze4 population.
 - Nothing on an existing path calls this module, so the MPX line and P8/P9 are untouched.
+  The learning-time variants in the next section call it through new types only.
+
+## Rule compaction during learning
+
+The rule compaction line (`docs/RULE_COMPACTION.md`) reduces populations while an agent
+learns. Everything is opt-in: no existing run name, `Configuration`, `ReplaySample`,
+checkpoint codec or default changes. Registered measurements are in
+`experiments/rule-compaction/`.
+
+### Module layout
+
+- `acs2-core/src/compaction/`, next to the untouched `cracs.rs`:
+  `mature_subsumption.rs` (A2), `value_guard.rs` (A3 and the shared `absorb` loop, which also
+  serves guarded CRACS, A1), `idle_pruning.rs` (A4 and `IdleTracker`),
+  `dynamic_thresholds.rs` (A5), `capacity.rs` (A6), `evidence.rs` (`StateMatches` and the
+  evidence predicates), `audit.rs`, `census.rs`, `ledger.rs` (`RemovalLedger`, keyed by
+  `RuleKey`), `trigger.rs` (C0-C5 and `CompactionPolicy`), `controller.rs`
+  (`CompactionParameters`, `ReductionEngine`, `CompactionController`, `ReductionRecord`),
+  `evidence_source.rs` (`EvidenceSource`, `NoEvidence`, strided and seeded subsampling),
+  `cost.rs` (`MatchingCost`, `EpisodeFormations`) and `single_head.rs`
+  (`SingleHeadCompaction`, the glue shared by the single-head agents).
+- `acs2-agents/src/{acs2,acs2er}/compacting.rs`, `acs2er/episodic/compacting.rs`,
+  `acs2her/compacting.rs`, `acs2vcp/compacting.rs` and `episodic_replay/{compacting,evidence}.rs`:
+  the compacting variants, each with its own parameter type (the pattern of
+  `ReplayConfiguration`); `StoredEvidence` joins the trajectory store's transitions with their
+  original goals and is shared by ACS2HER, episodic ACS2ER and ACS2VCP. ACS2ER evidence is the
+  replay memory (`MemoryEvidence`); plain ACS2 has none (`NoEvidence`).
+- `acs2-measure/src/{compaction_spec,compaction_report}.rs`, `agents/{compacting,instrumented}.rs`:
+  the strict JSON specification, the row report, the compacting run names and the shadow
+  instrumentation.
+
+### A2 and the symmetric `subsumes`
+
+`does_subsume`, the ACS2 insertion test, calls `Condition::subsumes`. That function is
+symmetric compatibility (`1##` and `#00` are compatible), not inclusion, because ALP and GA use
+it to detect rules that would predict the same thing. A2 therefore requires
+`does_subsume(subsumer, candidate, theta_exp, theta_r) && subsumer.condition.includes(candidate.condition)`
+(`does_subsume` also demands a strictly more general, unmarked subsumer with an equal effect).
+Without `includes`, a removed rule could match states its subsumer does not, and knowledge would
+not be exact. `Condition::subsumes` itself is unchanged for P8/P9.
+
+### The value guard and the order of resolution
+
+`Q_i(s, a)` is the maximum `q * r` over the change-anticipating rules of the action set. A
+survivor that includes the candidate's condition, has the same action and effect, and has at
+least the candidate's fitness cannot lower that maximum anywhere. `ValueGuard::permits` encodes
+this: a candidate that does not anticipate change is always absorbable; otherwise the survivor
+must anticipate change and satisfy `fitness(survivor) >= fitness(candidate) - delta`.
+`absorb` visits candidates from the most general (fewest specified positions, then index) and
+lets only rules that were not themselves absorbed act as survivors. A chain `c -> b -> a`
+therefore compares `c` with the final survivor `a`, not with `b`, so `delta` is a bound on the
+error per removed rule and does not accumulate along the chain. A candidate with an eligible
+subsumer that the guard refuses is counted as a value veto.
+
+### Work unit and the match counters
+
+Operator work is counted in classifier perception tests, the unit of the
+`classifier_perception_tests_train` counter: one per candidate-survivor pair in subsumption,
+and `population.len()` per distinct evidence state in `StateMatches`. None of these calls goes
+through `Population::form_match_set`, which is the only place `MatchCounters` records, so
+compaction never moves `match_formations_train` or `classifier_perception_tests_train` and the
+identity `formations = environment_steps + 3 * full + 2 * values_only + priority_value_queries`
+still holds. Work is reported separately. `charged` is what a deployed reduction would pay
+(operators, the candidate check, and the audit only when it is enforced); census and observed
+audits are measurement and appear in `uncharged`.
+
+### Randomness
+
+`COMPACTION_STREAM = 11` seeds the compaction source of the wrappers. Streams 1-10 and 12 are
+taken (agent, environment, evaluation, restricted pool, evaluation sample, evaluation
+environment, replay sampling, the extra VCP heads and the VCP acceptance coin). The only consumer is evidence subsampling when the sample is smaller than the
+memory. Shadow measurement uses strided evidence and draws nothing.
+
+### Controller pipeline and rollback
+
+`CompactionController::step` builds a `TriggerObservation` from the signal window since the last
+reduction, asks the `CompactionPolicy` (holdoff, trigger, strength), and on `Compact(strength)`
+runs `ReductionEngine::reduce`: sample evidence, take the census, run the operators in order
+on the progressively reduced candidate, run the audit (`Skip`, `Observe` or `Enforce`) and the
+agent's candidate check, and accept unless an enforced audit or the check vetoes. The input
+population is never mutated; a rejected candidate is simply dropped, so rollback is free. In
+`Apply` mode an accepted candidate is returned as a replacement and its removed rules enter the
+ledger; in `Shadow` mode the record is written and nothing is returned; `Off` never reaches the
+engine. The ledger turns later restorations into `restored_permille`, which feeds the policy's
+feedback with the yield and the guard's rejections. ACS2VCP's candidate check is the
+acceptance audit: the head under reduction is replaced by the candidate and the mean variance
+and VCP acceptance over the evidence are compared with the current heads, with an optional veto.
+
+### Cost derivation
+
+The trigger needs the matching cost without instrumenting the learner, so `MatchingCost` is
+derived from counts at episode boundaries: formations are charged `environment * size_at_start
++ learning * (size_at_start + size_at_end) / 2` classifier tests. The learning share at the mean
+size is a midpoint estimate.
+
+- ACS2: `environment = steps`, `learning = (steps - 1) * (1 + do_ga) + (2 unless the episode
+  terminated)`, where termination follows the agent's `truncation_mode`.
+- ACS2ER: `learning` sums `3 * min(samples_number, buffer_length)` over the episode's steps once
+  the buffer reaches `min_samples`, with the buffer capped at its capacity.
+- Episodic ACS2ER and ACS2HER: `UpdateCounts::formations_since`, with `environment` the new
+  steps and `learning = 3 * full_updates + 2 * values_only_updates`.
+- ACS2VCP: the head that played is charged `formations_since` at its own start and end sizes;
+  every head is charged the priority value queries of the episode divided by the head count at
+  the size it was tested at.
+
+Tests check that the derived `match_formations` equals the recorded `MatchCounters` formations
+for every flag combination, and a row validator checks the same on real rows.
+
+### Clocks
+
+Per head, each head has its own `CompactionController` and signals (its own interactions,
+size and derived cost). Synchronous, one `CompactionPolicy` sees the sums over heads and fires
+every head's `ReductionEngine` on the same request; the per-head feedback is combined into one
+(sums of sizes and work, any rejection, the largest restored share).
+
+### Seams in existing code
+
+All additive: `replace_population` on `acs2::Agent`, `acs2er::Agent`, the episodic learner and
+`acs2vcp::Agent` (per head); `truncation_mode()` getters on `acs2::Agent` and `acs2er::Agent`
+(needed to decide whether an episode terminated); `acs2vcp::priority::action_value_uncounted`,
+which gives the same value as `action_value` without recording into `MatchCounters` so audits
+do not perturb the counters; `UpdateCounts::formations_since`. None is called by an existing
+learning path, none changes a field or a default, and `Configuration`, `ReplaySample` and the
+checkpoint codec are untouched, so existing checkpoint identities stay valid and the MPX line
+(`acs2-bench`, `acs2-core` learning) is unaffected. `Off` mode gives exactly the learning
+snapshot of the plain agent, and `Shadow` follows the plain trajectory; both are tests.
+
+### Row keys
+
+A compacting run adds `agent_parameters.compaction` (the complete specification echo, with
+nulls for absent features), `agent_parameters.compaction_stream` and the row key `compaction`.
+`compaction` holds the totals (`reductions`, `accepted`, `applied`, `rejected`,
+`removed_applied`, `removed_candidates`), `work`, the derived `training_cost` and its definition,
+`population_size_area` (end-of-episode size times episode steps, summed over training), `heads`
+with their counts and policies, `synchronous_policy`, and the reductions since the previous
+row as `records` (bounded by `max_records_per_row`, with `records_new` and `records_omitted`).
+Each record carries sizes, removals by reason, stages, work, the audit and its verdict, the
+census before and candidate, the restoration share and the feedback. ACS2VCP adds `vcp` with the
+acceptance audits and disagreement probes. `--compaction-shadow` adds `compaction_shadow` to any
+row: one entry per specification label with one record per head. Rows of plain run names keep
+exactly their old keys.

@@ -11,7 +11,7 @@ import time
 
 from grid_protocol import stop_phase
 from row_schema import validate_blocks, validate_replay
-from agent_names import canonical_run_name
+from agent_names import canonical_run_name, plain_family
 
 
 def outside_repository(path):
@@ -56,7 +56,8 @@ def validate_row(row, config, agent, seed, commit, target):
         raise ValueError("unexpected replay volume")
     if config["task"].startswith("bitflip") and row["preset"]["number_of_possible_actions"] != int(config["task"][7:]):
         raise ValueError("unexpected BitFlipping width")
-    agent = canonical_run_name(agent)
+    run = canonical_run_name(agent)
+    agent = plain_family(run)
     if agent == "acs2":
         expected_updates = (steps, 0)
     elif agent == "acs2er_one_update":
@@ -69,7 +70,7 @@ def validate_row(row, config, agent, seed, commit, target):
         raise ValueError("unexpected learning update counts")
     if 'protocol' in config:
         validate_blocks(row, config)
-    validate_replay(row, config, agent)
+    validate_replay(row, config, run)
 
 
 def named_row(row, config):

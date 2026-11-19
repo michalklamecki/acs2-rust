@@ -1,0 +1,35 @@
+{
+  "mode": "apply",
+  "clock": "per_head",
+  "theta_r": 0.9,
+  "operators": [
+    {
+      "kind": "mature_subsumption",
+      "guarded": true
+    }
+  ],
+  "trigger": {
+    "kind": "once",
+    "at_interaction": 50000
+  },
+  "strength": {
+    "value_tolerance": 0.0,
+    "maturity_experience": 20,
+    "idle_audits": 1
+  },
+  "strength_bounds": null,
+  "feedback": null,
+  "phase_modulation": null,
+  "audit": {
+    "policy": "observe",
+    "max_coverage_loss": 0.0,
+    "max_no_change_coverage_loss": 0.0,
+    "max_value_change": 0.0,
+    "max_greedy_change_fraction": 0.0
+  },
+  "evidence_sample": 1000,
+  "census": true,
+  "acceptance_limits": null,
+  "disagreement_probe": null,
+  "max_records_per_row": 200
+}

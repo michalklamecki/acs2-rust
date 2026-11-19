@@ -1,0 +1,358 @@
+{
+  "schema": 1,
+  "stage": "registered_awaiting_user_approval",
+  "approved": false,
+  "experiment": "rule-compaction",
+  "measurement": "shadow_compaction",
+  "purpose": "Measure what each operator would remove from the populations of unchanged learning runs, and what that would do to coverage, values and greedy actions, at every registered checkpoint. Nothing is applied.",
+  "protocol": "maze-pairs-v1",
+  "pair_protocol_sha256": "eb1d2c01669b4471f68cbc1f671b81fea77e71cfc8e72b75e4f17cd5dcf6b189",
+  "split": {
+    "tuning": {
+      "mazes": [
+        "mazema_c9_pairs",
+        "woods14_c18_pairs",
+        "maze4_c5_pairs"
+      ],
+      "block": "validation",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ]
+    },
+    "evaluation": {
+      "mazes": [
+        "maze4_c5_pairs",
+        "maze5_c8_pairs",
+        "maze6_c10_pairs",
+        "maze7_c10_pairs",
+        "woods14_c18_pairs",
+        "mazema_c9_pairs"
+      ],
+      "block": "test",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61
+      ],
+      "claims_only_on": [
+        "maze5_c8_pairs",
+        "maze6_c10_pairs",
+        "maze7_c10_pairs"
+      ]
+    },
+    "this_measurement": "tuning"
+  },
+  "success_measures": {
+    "cost": "Classifier perception tests in training plus compaction work in the same unit; deterministic and independent of hardware. Wall time, memory and the area under the population-size curve are reported separately.",
+    "quality": "Knowledge and held-out success, as the mean over the registered checkpoints and as the final point, plus the value diagnostics.",
+    "helps": {
+      "minimum_matching_test_reduction": 0.3,
+      "maximum_knowledge_loss": 0.01,
+      "maximum_held_out_success_loss": 0.01,
+      "reference": "the same agent without compaction on the same seeds",
+      "mazes": "mazes not used for tuning"
+    },
+    "frozen": "before any learning run of this line; changing a value after results requires a new registration"
+  },
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "arms": [
+    {
+      "run_name": "acs2",
+      "family": "acs2",
+      "heads": 1,
+      "control_of": null,
+      "shadow_specification": "specifications/shadow_without_evidence.json",
+      "shadow_specification_sha256": "55025ede8cdd341113eb025ac41b36661927e2a4745a4c79b3c87205e211b14a"
+    },
+    {
+      "run_name": "acs2er",
+      "family": "acs2er",
+      "heads": 1,
+      "control_of": null,
+      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
+    },
+    {
+      "run_name": "acs2her",
+      "family": "acs2her",
+      "heads": 1,
+      "control_of": null,
+      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
+    },
+    {
+      "run_name": "acs2vcp_k2",
+      "family": "acs2vcp",
+      "heads": 2,
+      "control_of": null,
+      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
+      "temperature": 24
+    },
+    {
+      "run_name": "acs2vcp_k4",
+      "family": "acs2vcp",
+      "heads": 4,
+      "control_of": null,
+      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
+      "temperature": 24
+    },
+    {
+      "run_name": "acs2vcp_k2_uniform",
+      "family": "acs2vcp",
+      "heads": 2,
+      "control_of": "acs2vcp_k2",
+      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
+    },
+    {
+      "run_name": "acs2vcp_k4_uniform",
+      "family": "acs2vcp",
+      "heads": 4,
+      "control_of": "acs2vcp_k4",
+      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
+    }
+  ],
+  "unexpressed_arms": {
+    "comparators": "A7: GA enabled and a small u_max",
+    "reason": "acs2-measure builds every agent from one fixed thesis preset and has no option for do_ga or u_max, so these arms cannot be run without adding command-line surface.",
+    "status": "not registered; a decision to add the options is a separate scope change"
+  },
+  "command_template": "acs2-measure --task TASK --cap CAP --pool full --encoding coordinates --protocol maze-pairs-v1 --evaluation-blocks validation --agents RUN_NAME [--vcp-temperature 24] --compaction-shadow SPECIFICATION --seeds SEED --targets TARGETS --out OUT",
+  "learning_unchanged": "Shadow runs on copies with strided evidence and draws no random numbers, so every learning field of a row equals the same run without the shadow report.",
+  "configurations": [
+    {
+      "id": "mazema_c9_pairs",
+      "task": "mazema",
+      "cap": 9,
+      "pool": "full",
+      "row_pool": "full",
+      "encoding": "coordinates",
+      "row_schema": 5,
+      "protocol": "maze-pairs-v1",
+      "knowledge_transition_goal_pairs": 476,
+      "budget_steps": 2000000,
+      "targets": [
+        1000,
+        3000,
+        10000,
+        30000,
+        100000,
+        300000,
+        1000000,
+        2000000
+      ],
+      "evaluation_blocks": [
+        "validation"
+      ],
+      "agent_settings": {
+        "acs2": {
+          "compaction_shadow": "specifications/shadow_without_evidence.json"
+        },
+        "acs2er": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2her": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2vcp_k2": {
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "temperature": 24
+        },
+        "acs2vcp_k4": {
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "temperature": 24
+        },
+        "acs2vcp_k2_uniform": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2vcp_k4_uniform": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        }
+      }
+    },
+    {
+      "id": "woods14_c18_pairs",
+      "task": "woods14",
+      "cap": 18,
+      "pool": "full",
+      "row_pool": "full",
+      "encoding": "coordinates",
+      "row_schema": 5,
+      "protocol": "maze-pairs-v1",
+      "knowledge_transition_goal_pairs": 648,
+      "budget_steps": 4000000,
+      "targets": [
+        1000,
+        3000,
+        10000,
+        30000,
+        100000,
+        300000,
+        1000000,
+        2000000,
+        4000000
+      ],
+      "evaluation_blocks": [
+        "validation"
+      ],
+      "agent_settings": {
+        "acs2": {
+          "compaction_shadow": "specifications/shadow_without_evidence.json"
+        },
+        "acs2er": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2her": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2vcp_k2": {
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "temperature": 24
+        },
+        "acs2vcp_k4": {
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "temperature": 24
+        },
+        "acs2vcp_k2_uniform": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2vcp_k4_uniform": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        }
+      }
+    },
+    {
+      "id": "maze4_c5_pairs",
+      "task": "maze4",
+      "cap": 5,
+      "pool": "full",
+      "row_pool": "full",
+      "encoding": "coordinates",
+      "row_schema": 5,
+      "protocol": "maze-pairs-v1",
+      "knowledge_transition_goal_pairs": 3068,
+      "budget_steps": 2000000,
+      "targets": [
+        1000,
+        3000,
+        10000,
+        30000,
+        100000,
+        300000,
+        1000000,
+        2000000
+      ],
+      "evaluation_blocks": [
+        "validation"
+      ],
+      "agent_settings": {
+        "acs2": {
+          "compaction_shadow": "specifications/shadow_without_evidence.json"
+        },
+        "acs2er": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2her": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2vcp_k2": {
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "temperature": 24
+        },
+        "acs2vcp_k4": {
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "temperature": 24
+        },
+        "acs2vcp_k2_uniform": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        },
+        "acs2vcp_k4_uniform": {
+          "compaction_shadow": "specifications/shadow_all_operators.json"
+        }
+      }
+    }
+  ],
+  "cost": {
+    "expected_cpu_hour_ceiling": 6,
+    "ceiling_origin": "stage budget of the plan, expected allocation CPU including the pilot",
+    "archived_limit_minutes": {
+      "mazema_c9_pairs": {
+        "acs2": 2,
+        "acs2er": 3,
+        "acs2her": 2,
+        "acs2vcp_k2": 3,
+        "acs2vcp_k4": 4,
+        "acs2vcp_k2_uniform": 2,
+        "acs2vcp_k4_uniform": 4
+      },
+      "woods14_c18_pairs": {
+        "acs2": 3,
+        "acs2er": 5,
+        "acs2her": 3,
+        "acs2vcp_k2": 4,
+        "acs2vcp_k4": 8,
+        "acs2vcp_k2_uniform": 4,
+        "acs2vcp_k4_uniform": 6
+      },
+      "maze4_c5_pairs": {
+        "acs2": 3,
+        "acs2er": 7,
+        "acs2her": 4,
+        "acs2vcp_k2": 6,
+        "acs2vcp_k4": 12,
+        "acs2vcp_k2_uniform": 8,
+        "acs2vcp_k4_uniform": 12
+      }
+    },
+    "archived_limit_minutes_per_seed": 105,
+    "archived_hard_limit_cpu_hours_for_all_seeds_without_shadow": 8.75,
+    "archived_hard_limit_cpu_hours_for_the_pilot_without_shadow": 1.75,
+    "limit_source": "hard limits of the archived registrations of the same agents on the same mazes: maze-baselines/grid-plan.json, her-variants/plan.json (her_full), value-consistency/plan-draft.json",
+    "accounting_note": "experiments/grid charges every array element at its hard limit against the phase limit, so the sum of the limits, not the expected usage, must fit the approved limit. Shadow overhead is not in these limits.",
+    "decision_after_pilot": "Set limits from the seed-42 pilot (shadow included). If the hard limits for all seeds exceed the approved phase limit, the user chooses between a higher ceiling, fewer seeds and fewer arms; nothing is reduced silently."
+  },
+  "cost_pilot": {
+    "mandatory": true,
+    "seed": 42,
+    "runs": 21,
+    "rule": "Run every arm on every tuning maze at the registered budgets with seed 42 before the grid. Record allocation CPU, process CPU, wall time and the population-size area per run. Forecast the grid as the pilot cost times the number of seeds and report it with the sum of hard limits; the grid is submitted only after the user approves that forecast.",
+    "identity": "Where verified archived rows of the same agent exist, the seed-42 learning fields must reproduce them bit for bit."
+  },
+  "before_cluster_use": [
+    "The user approves this registration and the pilot, in writing.",
+    "Check the grant: sshare -U -u \"$WCSS_USER\" -A \"$WCSS_ACCOUNT\" -o RawUsage -n against WCSS_GRANT_CPU_HOURS, plus the queue commitment.",
+    "Wire the shared grid path for this experiment: an execution.py with --derive-manifest registered in experiments/grid/grid_authorization.py, and the pass-through of agent_settings.compaction_shadow to the --compaction-shadow flag in experiments/grid/collect.py.",
+    "Build the musl binary once in a dedicated clone at a pinned clean commit; never rebuild it on the cluster.",
+    "Submit the seed-42 pilot, then stop and report."
+  ]
+}

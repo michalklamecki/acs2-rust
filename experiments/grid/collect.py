@@ -83,6 +83,21 @@ def named_row(row, config):
     return dict(row, arm=config['row_arm'])
 
 
+def shadow_arguments(settings, repository):
+    registered = settings.get('compaction_shadow')
+    if registered is None:
+        return []
+    if repository is None:
+        raise ValueError('a compaction shadow specification resolves inside the measurement repository')
+    base = Path(repository).resolve()
+    path = (base / registered).resolve()
+    if Path(registered).is_absolute() or not path.is_relative_to(base) or not path.is_file():
+        raise ValueError('compaction shadow specification is not a file of the measurement repository')
+    if hashlib.sha256(path.read_bytes()).hexdigest() != settings.get('compaction_shadow_sha256'):
+        raise ValueError('compaction shadow specification differs from its registered hash')
+    return ['--compaction-shadow', str(path)]
+
+
 def process_sample(pid):
     try:
         cpu = int(Path(f"/proc/{pid}/schedstat").read_text().split()[0]) / 1e9
@@ -126,6 +141,8 @@ def run(args):
         config = manifest["configurations"][args.index // 2]
         agent = manifest["agents"][args.index % 2]
         seed = manifest["pilot_seed"]
+    agent_settings = config.get('agent_settings', {}).get(agent, {})
+    shadow = shadow_arguments(agent_settings, getattr(args, 'repository', None))
     directory = outside_repository(Path(args.output) / f"{config['id']}_{agent}_s{seed}")
     directory.mkdir(parents=True, exist_ok=False)
     labeled = 'row_arm' in config
@@ -138,11 +155,11 @@ def run(args):
         command.extend(['--protocol', config['protocol']])
     if config.get('evaluation_blocks') == ['validation']:
         command.extend(['--evaluation-blocks', 'validation'])
-    agent_settings = config.get('agent_settings', {}).get(agent, {})
     if 'relabeled_proportion' in agent_settings:
         command.extend(['--relabel-proportion', str(agent_settings['relabeled_proportion'])])
     if 'temperature' in agent_settings:
         command.extend(['--vcp-temperature', str(agent_settings['temperature'])])
+    command.extend(shadow)
     metadata = {"command": command, "commit": args.commit, "manifest": manifest,
                 "manifest_sha256": hashlib.sha256(Path(args.manifest).read_bytes()).hexdigest(),
                 "binary_sha256": hashlib.sha256(Path(args.binary).read_bytes()).hexdigest(),
@@ -264,6 +281,7 @@ def main():
     parser.add_argument("--binary", required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--repository")
     parser.add_argument("--index", required=True, type=int)
     parser.add_argument("--sample-interval", type=float, default=0.02)
     args = parser.parse_args()

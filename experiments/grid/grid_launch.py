@@ -68,7 +68,7 @@ def main():
         atomic_json(path, manifest)
         command = [sys.executable, '-B', str(Path(__file__).with_name('collect.py')),
                    '--manifest', str(path), '--binary', assignments['binary'], '--commit', commit,
-                   '--output', str(output), '--index', '0']
+                   '--output', str(output), '--index', '0', '--repository', str(repo)]
         result = subprocess.run(command)
         if result.returncode:
             raise ValueError(f'collector exited {result.returncode}')

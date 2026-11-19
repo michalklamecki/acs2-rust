@@ -1,7 +1,15 @@
 {
   "schema": 1,
-  "stage": "registered_awaiting_user_approval",
-  "approved": false,
+  "stage": "approved_pilot_then_grid",
+  "approved": true,
+  "approval": {
+    "record": "approval.json",
+    "confirmed_on": "2026-11-19",
+    "scope": "shadow measurement: the seed-42 cost pilot and then the full grid of seeds 42-46, at the registered limits",
+    "cpu_hour_ceiling": 82,
+    "plan_cpu_hour_expectation": 6,
+    "note": "The user allowed a budget above the plan expectation; the record carries the hash of this file."
+  },
   "experiment": "rule-compaction",
   "measurement": "shadow_compaction",
   "purpose": "Measure what each operator would remove from the populations of unchanged learning runs, and what that would do to coverage, values and greedy actions, at every registered checkpoint. Nothing is applied.",
@@ -176,29 +184,46 @@
       ],
       "agent_settings": {
         "acs2": {
-          "compaction_shadow": "specifications/shadow_without_evidence.json"
+          "compaction_shadow": "specifications/shadow_without_evidence.json",
+          "compaction_shadow_sha256": "55025ede8cdd341113eb025ac41b36661927e2a4745a4c79b3c87205e211b14a"
         },
         "acs2er": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2her": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k2": {
           "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k4": {
           "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k2_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k4_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         }
-      }
+      },
+      "limits_minutes": {
+        "acs2": 32,
+        "acs2er": 33,
+        "acs2her": 32,
+        "acs2vcp_k2": 33,
+        "acs2vcp_k4": 34,
+        "acs2vcp_k2_uniform": 32,
+        "acs2vcp_k4_uniform": 34
+      },
+      "vcp_diagnostics": "evaluation_disagreement"
     },
     {
       "id": "woods14_c18_pairs",
@@ -227,29 +252,46 @@
       ],
       "agent_settings": {
         "acs2": {
-          "compaction_shadow": "specifications/shadow_without_evidence.json"
+          "compaction_shadow": "specifications/shadow_without_evidence.json",
+          "compaction_shadow_sha256": "55025ede8cdd341113eb025ac41b36661927e2a4745a4c79b3c87205e211b14a"
         },
         "acs2er": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2her": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k2": {
           "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k4": {
           "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k2_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k4_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         }
-      }
+      },
+      "limits_minutes": {
+        "acs2": 33,
+        "acs2er": 35,
+        "acs2her": 33,
+        "acs2vcp_k2": 34,
+        "acs2vcp_k4": 38,
+        "acs2vcp_k2_uniform": 34,
+        "acs2vcp_k4_uniform": 36
+      },
+      "vcp_diagnostics": "evaluation_disagreement"
     },
     {
       "id": "maze4_c5_pairs",
@@ -277,34 +319,53 @@
       ],
       "agent_settings": {
         "acs2": {
-          "compaction_shadow": "specifications/shadow_without_evidence.json"
+          "compaction_shadow": "specifications/shadow_without_evidence.json",
+          "compaction_shadow_sha256": "55025ede8cdd341113eb025ac41b36661927e2a4745a4c79b3c87205e211b14a"
         },
         "acs2er": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2her": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k2": {
           "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k4": {
           "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k2_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k4_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json"
+          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         }
-      }
+      },
+      "limits_minutes": {
+        "acs2": 33,
+        "acs2er": 37,
+        "acs2her": 34,
+        "acs2vcp_k2": 36,
+        "acs2vcp_k4": 42,
+        "acs2vcp_k2_uniform": 38,
+        "acs2vcp_k4_uniform": 42
+      },
+      "vcp_diagnostics": "evaluation_disagreement"
     }
   ],
   "cost": {
-    "expected_cpu_hour_ceiling": 6,
-    "ceiling_origin": "stage budget of the plan, expected allocation CPU including the pilot",
+    "plan_cpu_hour_expectation": 6,
+    "cpu_hour_ceiling": 82,
+    "ceiling_origin": "sum of the registered hard limits of the pilot and the grid, rounded up to whole CPU-hours; the user approved a ceiling above the plan expectation on 2026-11-19",
+    "limit_rule": "registered limit = max(2 x archived limit, archived limit + 30 minutes); shadow overhead is unknown, a timeout wastes a run and the reservation is cheap against the grant",
     "archived_limit_minutes": {
       "mazema_c9_pairs": {
         "acs2": 2,
@@ -334,25 +395,68 @@
         "acs2vcp_k4_uniform": 12
       }
     },
+    "array_limit_minutes": {
+      "mazema_c9_pairs": 34,
+      "woods14_c18_pairs": 38,
+      "maze4_c5_pairs": 42
+    },
+    "pilot_hard_reservation_minutes": 882,
+    "grid_hard_reservation_minutes": 3990,
+    "pilot_hard_reservation_cpu_seconds": 52920,
+    "hard_reservation_arithmetic": "An array element is reserved at the largest limit of its array. Pilot: one array of 21 runs at the largest limit of any maze. Grid: one array of 35 runs per maze at that maze limit. The grid manifest carries the whole pilot reservation as its pilot allocation, so pilot plus grid never exceed the ceiling.",
     "archived_limit_minutes_per_seed": 105,
     "archived_hard_limit_cpu_hours_for_all_seeds_without_shadow": 8.75,
     "archived_hard_limit_cpu_hours_for_the_pilot_without_shadow": 1.75,
     "limit_source": "hard limits of the archived registrations of the same agents on the same mazes: maze-baselines/grid-plan.json, her-variants/plan.json (her_full), value-consistency/plan-draft.json",
-    "accounting_note": "experiments/grid charges every array element at its hard limit against the phase limit, so the sum of the limits, not the expected usage, must fit the approved limit. Shadow overhead is not in these limits.",
-    "decision_after_pilot": "Set limits from the seed-42 pilot (shadow included). If the hard limits for all seeds exceed the approved phase limit, the user chooses between a higher ceiling, fewer seeds and fewer arms; nothing is reduced silently."
+    "accounting_note": "experiments/grid charges every array element at its hard limit against the phase limit, so the sum of the limits, not the expected usage, must fit the approved limit. The archived limits exclude shadow overhead; the registered limits carry the margin for it.",
+    "decision_after_pilot": "The limits and the ceiling are registered and approved. The pilot reports the measured cost beside them; changing a limit, a seed or an arm afterwards needs a new registration and a new approval, and nothing is reduced silently."
+  },
+  "execution": {
+    "partition": "lem-cpu-normal",
+    "cpu_model": "AMD EPYC 9554 64-Core Processor",
+    "memory_mib": 1024,
+    "memory_note": "512 MiB in the archived registrations; doubled because the shadow keeps copies of every head population and an evidence sample",
+    "job_name": "rule-compaction-shadow",
+    "first_row_timeout_seconds": 60,
+    "pilot": {
+      "stage": "authorized_cost_pilot",
+      "seeds": [
+        42
+      ],
+      "concurrency": 21,
+      "runs": 21,
+      "pilot_allocation_cpu_seconds": 0
+    },
+    "grid": {
+      "stage": "approved_grid",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "concurrency": 35,
+      "runs": 105,
+      "runs_per_array": 35,
+      "pilot_allocation_cpu_seconds": 52920,
+      "seed_42": "run again in the grid so the grid is one self-contained set; its learning fields must equal the pilot rows"
+    },
+    "phase_cpu_hour_limit": 82
   },
   "cost_pilot": {
     "mandatory": true,
     "seed": 42,
     "runs": 21,
-    "rule": "Run every arm on every tuning maze at the registered budgets with seed 42 before the grid. Record allocation CPU, process CPU, wall time and the population-size area per run. Forecast the grid as the pilot cost times the number of seeds and report it with the sum of hard limits; the grid is submitted only after the user approves that forecast.",
+    "rule": "Run every arm on every tuning maze at the registered budgets with seed 42 before the grid. Record allocation CPU, process CPU, wall time and the population-size area per run, and report them beside the registered limits. The user approved the grid together with the pilot, so the grid follows when the pilot completes cleanly.",
     "identity": "Where verified archived rows of the same agent exist, the seed-42 learning fields must reproduce them bit for bit."
   },
   "before_cluster_use": [
-    "The user approves this registration and the pilot, in writing.",
+    "Approved by the user on 2026-11-19 (approval.json); the approval record must carry the hash of this file.",
     "Check the grant: sshare -U -u \"$WCSS_USER\" -A \"$WCSS_ACCOUNT\" -o RawUsage -n against WCSS_GRANT_CPU_HOURS, plus the queue commitment.",
-    "Wire the shared grid path for this experiment: an execution.py with --derive-manifest registered in experiments/grid/grid_authorization.py, and the pass-through of agent_settings.compaction_shadow to the --compaction-shadow flag in experiments/grid/collect.py.",
+    "Done: experiments/rule-compaction/execution.py derives the pilot and grid manifests, grid_authorization.py dispatches to it, and collect.py passes agent_settings.compaction_shadow to --compaction-shadow after verifying its SHA-256.",
     "Build the musl binary once in a dedicated clone at a pinned clean commit; never rebuild it on the cluster.",
-    "Submit the seed-42 pilot, then stop and report."
+    "Submit the seed-42 pilot, wait for all 21 runs, check them and report the measured cost.",
+    "Submit the grid only after the pilot completed without a STOP or a timeout; a limit that was hit means a new registration."
   ]
 }

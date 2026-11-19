@@ -19,8 +19,21 @@ TUNING_SEEDS = tuple(range(42, 47))
 EVALUATION_SEEDS = tuple(range(42, 62))
 INTERVENTION_SEEDS = tuple(range(42, 52))
 TEMPERATURE = 24
-SHADOW_CPU_HOUR_CEILING = 6
+PLAN_SHADOW_CPU_HOUR_EXPECTATION = 6
 INTERVENTION_CPU_HOUR_ESTIMATE = 20
+
+APPROVAL_DATE = '2026-11-19'
+PILOT_SEEDS = (42,)
+LIMIT_FACTOR = 2
+LIMIT_MARGIN_MINUTES = 30
+PARTITION = 'lem-cpu-normal'
+CPU_MODEL = 'AMD EPYC 9554 64-Core Processor'
+MEMORY_MIB = 1024
+PILOT_CONCURRENCY = 21
+GRID_CONCURRENCY = 35
+FIRST_ROW_TIMEOUT_SECONDS = 60
+JOB_NAME = 'rule-compaction-shadow'
+VCP_DIAGNOSTICS = 'evaluation_disagreement'
 
 SHADOW_WITH_EVIDENCE = 'specifications/shadow_all_operators.json'
 SHADOW_WITHOUT_EVIDENCE = 'specifications/shadow_without_evidence.json'
@@ -128,19 +141,73 @@ def archived_limit_minutes():
     return table
 
 
+def shadow_limit_minutes(archived):
+    return max(LIMIT_FACTOR * archived, archived + LIMIT_MARGIN_MINUTES)
+
+
+def registered_limit_minutes():
+    return {identifier: {name: shadow_limit_minutes(minutes) for name, minutes in arms.items()}
+            for identifier, arms in archived_limit_minutes().items()}
+
+
+def array_limit_minutes(limits):
+    return {identifier: max(arms.values()) for identifier, arms in limits.items()}
+
+
+def hard_reservation_minutes(limits):
+    array = array_limit_minutes(limits)
+    arms = len(SHADOW_ARMS)
+    pilot = len(PILOT_SEEDS) * arms * len(array) * max(array.values())
+    grid = len(TUNING_SEEDS) * arms * sum(array.values())
+    return dict(array=array, pilot=pilot, grid=grid)
+
+
+def cpu_hour_ceiling(limits):
+    reservation = hard_reservation_minutes(limits)
+    return -(-(reservation['pilot'] + reservation['grid']) // 60)
+
+
 def shadow_cost():
     limits = archived_limit_minutes()
+    registered = registered_limit_minutes()
+    reservation = hard_reservation_minutes(registered)
     per_seed_minutes = sum(sum(arm.values()) for arm in limits.values())
     return dict(
-        expected_cpu_hour_ceiling=SHADOW_CPU_HOUR_CEILING,
-        ceiling_origin='stage budget of the plan, expected allocation CPU including the pilot',
+        plan_cpu_hour_expectation=PLAN_SHADOW_CPU_HOUR_EXPECTATION,
+        cpu_hour_ceiling=cpu_hour_ceiling(registered),
+        ceiling_origin='sum of the registered hard limits of the pilot and the grid, rounded up to whole CPU-hours; the user approved a ceiling above the plan expectation on ' + APPROVAL_DATE,
+        limit_rule=f'registered limit = max({LIMIT_FACTOR} x archived limit, archived limit + {LIMIT_MARGIN_MINUTES} minutes); shadow overhead is unknown, a timeout wastes a run and the reservation is cheap against the grant',
         archived_limit_minutes=limits,
+        array_limit_minutes=reservation['array'],
+        pilot_hard_reservation_minutes=reservation['pilot'],
+        grid_hard_reservation_minutes=reservation['grid'],
+        pilot_hard_reservation_cpu_seconds=reservation['pilot'] * 60,
+        hard_reservation_arithmetic='An array element is reserved at the largest limit of its array. Pilot: one array of 21 runs at the largest limit of any maze. Grid: one array of 35 runs per maze at that maze limit. The grid manifest carries the whole pilot reservation as its pilot allocation, so pilot plus grid never exceed the ceiling.',
         archived_limit_minutes_per_seed=per_seed_minutes,
         archived_hard_limit_cpu_hours_for_all_seeds_without_shadow=per_seed_minutes * len(TUNING_SEEDS) / 60,
         archived_hard_limit_cpu_hours_for_the_pilot_without_shadow=per_seed_minutes / 60,
         limit_source='hard limits of the archived registrations of the same agents on the same mazes: maze-baselines/grid-plan.json, her-variants/plan.json (her_full), value-consistency/plan-draft.json',
-        accounting_note='experiments/grid charges every array element at its hard limit against the phase limit, so the sum of the limits, not the expected usage, must fit the approved limit. Shadow overhead is not in these limits.',
-        decision_after_pilot='Set limits from the seed-42 pilot (shadow included). If the hard limits for all seeds exceed the approved phase limit, the user chooses between a higher ceiling, fewer seeds and fewer arms; nothing is reduced silently.',
+        accounting_note='experiments/grid charges every array element at its hard limit against the phase limit, so the sum of the limits, not the expected usage, must fit the approved limit. The archived limits exclude shadow overhead; the registered limits carry the margin for it.',
+        decision_after_pilot='The limits and the ceiling are registered and approved. The pilot reports the measured cost beside them; changing a limit, a seed or an arm afterwards needs a new registration and a new approval, and nothing is reduced silently.',
+    )
+
+
+def shadow_execution(cost):
+    return dict(
+        partition=PARTITION,
+        cpu_model=CPU_MODEL,
+        memory_mib=MEMORY_MIB,
+        memory_note='512 MiB in the archived registrations; doubled because the shadow keeps copies of every head population and an evidence sample',
+        job_name=JOB_NAME,
+        first_row_timeout_seconds=FIRST_ROW_TIMEOUT_SECONDS,
+        pilot=dict(stage='authorized_cost_pilot', seeds=list(PILOT_SEEDS), concurrency=PILOT_CONCURRENCY,
+                   runs=len(SHADOW_ARMS) * len(TUNING_MAZES), pilot_allocation_cpu_seconds=0),
+        grid=dict(stage='approved_grid', seeds=list(TUNING_SEEDS), concurrency=GRID_CONCURRENCY,
+                  runs=len(SHADOW_ARMS) * len(TUNING_MAZES) * len(TUNING_SEEDS),
+                  runs_per_array=len(SHADOW_ARMS) * len(TUNING_SEEDS),
+                  pilot_allocation_cpu_seconds=cost['pilot_hard_reservation_cpu_seconds'],
+                  seed_42='run again in the grid so the grid is one self-contained set; its learning fields must equal the pilot rows'),
+        phase_cpu_hour_limit=cost['cpu_hour_ceiling'],
     )
 
 
@@ -151,19 +218,32 @@ def shadow_protocol():
         entry = dict(run_name=arm['run_name'], family=arm['family'], heads=arm['heads'],
                      control_of=arm['control_of'], shadow_specification=arm['specification'],
                      shadow_specification_sha256=sha256(specification_path(arm['specification'])))
-        setting = dict(compaction_shadow=arm['specification'])
+        setting = dict(compaction_shadow=arm['specification'],
+                       compaction_shadow_sha256=entry['shadow_specification_sha256'])
         if arm.get('temperature'):
             entry['temperature'] = arm['temperature']
             setting['temperature'] = arm['temperature']
         arms.append(entry)
         settings[arm['run_name']] = setting
     configurations = maze_configurations(TUNING_MAZES, ['validation'])
+    limits = registered_limit_minutes()
     for configuration in configurations:
         configuration['agent_settings'] = settings
+        configuration['limits_minutes'] = limits[configuration['id']]
+        configuration['vcp_diagnostics'] = VCP_DIAGNOSTICS
+    cost = shadow_cost()
     return dict(
         schema=1,
-        stage='registered_awaiting_user_approval',
-        approved=False,
+        stage='approved_pilot_then_grid',
+        approved=True,
+        approval=dict(
+            record='approval.json',
+            confirmed_on=APPROVAL_DATE,
+            scope='shadow measurement: the seed-42 cost pilot and then the full grid of seeds 42-46, at the registered limits',
+            cpu_hour_ceiling=cost['cpu_hour_ceiling'],
+            plan_cpu_hour_expectation=PLAN_SHADOW_CPU_HOUR_EXPECTATION,
+            note='The user allowed a budget above the plan expectation; the record carries the hash of this file.',
+        ),
         experiment='rule-compaction',
         measurement='shadow_compaction',
         purpose='Measure what each operator would remove from the populations of unchanged learning runs, and what that would do to coverage, values and greedy actions, at every registered checkpoint. Nothing is applied.',
@@ -182,20 +262,22 @@ def shadow_protocol():
         command_template='acs2-measure --task TASK --cap CAP --pool full --encoding coordinates --protocol maze-pairs-v1 --evaluation-blocks validation --agents RUN_NAME [--vcp-temperature 24] --compaction-shadow SPECIFICATION --seeds SEED --targets TARGETS --out OUT',
         learning_unchanged='Shadow runs on copies with strided evidence and draws no random numbers, so every learning field of a row equals the same run without the shadow report.',
         configurations=configurations,
-        cost=shadow_cost(),
+        cost=cost,
+        execution=shadow_execution(cost),
         cost_pilot=dict(
             mandatory=True,
             seed=42,
             runs=len(SHADOW_ARMS) * len(TUNING_MAZES),
-            rule='Run every arm on every tuning maze at the registered budgets with seed 42 before the grid. Record allocation CPU, process CPU, wall time and the population-size area per run. Forecast the grid as the pilot cost times the number of seeds and report it with the sum of hard limits; the grid is submitted only after the user approves that forecast.',
+            rule='Run every arm on every tuning maze at the registered budgets with seed 42 before the grid. Record allocation CPU, process CPU, wall time and the population-size area per run, and report them beside the registered limits. The user approved the grid together with the pilot, so the grid follows when the pilot completes cleanly.',
             identity='Where verified archived rows of the same agent exist, the seed-42 learning fields must reproduce them bit for bit.',
         ),
         before_cluster_use=[
-            'The user approves this registration and the pilot, in writing.',
+            'Approved by the user on ' + APPROVAL_DATE + ' (approval.json); the approval record must carry the hash of this file.',
             'Check the grant: sshare -U -u "$WCSS_USER" -A "$WCSS_ACCOUNT" -o RawUsage -n against WCSS_GRANT_CPU_HOURS, plus the queue commitment.',
-            'Wire the shared grid path for this experiment: an execution.py with --derive-manifest registered in experiments/grid/grid_authorization.py, and the pass-through of agent_settings.compaction_shadow to the --compaction-shadow flag in experiments/grid/collect.py.',
+            'Done: experiments/rule-compaction/execution.py derives the pilot and grid manifests, grid_authorization.py dispatches to it, and collect.py passes agent_settings.compaction_shadow to --compaction-shadow after verifying its SHA-256.',
             'Build the musl binary once in a dedicated clone at a pinned clean commit; never rebuild it on the cluster.',
-            'Submit the seed-42 pilot, then stop and report.',
+            'Submit the seed-42 pilot, wait for all 21 runs, check them and report the measured cost.',
+            'Submit the grid only after the pilot completed without a STOP or a timeout; a limit that was hit means a new registration.',
         ],
     )
 

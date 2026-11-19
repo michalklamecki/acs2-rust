@@ -7,7 +7,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from collect import complete_rows, interval_cost, named_row, outside_repository, run, validate_row
+import hashlib
+
+from collect import complete_rows, interval_cost, named_row, outside_repository, run, shadow_arguments, validate_row
 
 
 class CollectionTests(unittest.TestCase):
@@ -138,6 +140,78 @@ class CollectionTests(unittest.TestCase):
             self.assertIn("first row deadline", completion["failure"])
             self.assertLess(completion["elapsed_seconds"], 2)
             self.assertNotEqual(completion["exit_code"], 0)
+
+
+class ShadowPassThroughTests(unittest.TestCase):
+    SPECIFICATION = "specifications/shadow_all_operators.json"
+
+    def repository(self, root):
+        repository = root / "clone"
+        (repository / "specifications").mkdir(parents=True)
+        (repository / self.SPECIFICATION).write_bytes(b'{"entries": []}\n')
+        return repository, hashlib.sha256(b'{"entries": []}\n').hexdigest()
+
+    def test_the_registered_specification_resolves_inside_the_clone_and_its_hash_is_verified(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            repository, digest = self.repository(Path(temporary))
+            settings = {"compaction_shadow": self.SPECIFICATION, "compaction_shadow_sha256": digest}
+            self.assertEqual(shadow_arguments(settings, repository),
+                             ["--compaction-shadow", str((repository / self.SPECIFICATION).resolve())])
+            self.assertEqual(shadow_arguments({"temperature": 24}, repository), [])
+            self.assertEqual(shadow_arguments({}, None), [])
+            for changed in (dict(settings, compaction_shadow_sha256="0" * 64),
+                            {"compaction_shadow": self.SPECIFICATION},
+                            dict(settings, compaction_shadow="../outside.json"),
+                            dict(settings, compaction_shadow=str(repository / self.SPECIFICATION)),
+                            dict(settings, compaction_shadow="specifications/missing.json")):
+                with self.subTest(settings=changed), self.assertRaises(ValueError):
+                    shadow_arguments(changed, repository)
+            with self.assertRaises(ValueError):
+                shadow_arguments(settings, None)
+            (repository / self.SPECIFICATION).write_bytes(b'{"entries": [1]}\n')
+            with self.assertRaises(ValueError):
+                shadow_arguments(settings, repository)
+
+    def test_the_command_carries_one_agent_the_temperature_and_the_shadow_specification(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository, digest = self.repository(root)
+            config = {"id": "test", "task": "maze4", "cap": 5, "pool": "full", "row_pool": "full",
+                      "encoding": "coordinates", "targets": [1], "protocol": "maze-pairs-v1",
+                      "evaluation_blocks": ["validation"],
+                      "agent_settings": {"acs2vcp_k2": {"compaction_shadow": self.SPECIFICATION,
+                                                        "compaction_shadow_sha256": digest, "temperature": 24},
+                                         "acs2vcp_k2_uniform": {"compaction_shadow": self.SPECIFICATION,
+                                                                "compaction_shadow_sha256": digest}}}
+            binary = root / "writer"
+            row = json.dumps({"wall_seconds_train": 0.001, "wall_seconds_eval": 0.001, "nominal_step": 1})
+            binary.write_text("#!/usr/bin/env python3\nimport json, sys\nfrom pathlib import Path\n"
+                              "out = Path(sys.argv[sys.argv.index('--out') + 1])\n"
+                              "out.with_name('argv.json').write_text(json.dumps(sys.argv[1:]))\n"
+                              "out.write_text(" + repr(row + "\n") + ")\n")
+            binary.chmod(0o755)
+            manifest = {"configurations": [config], "agents": ["acs2vcp_k2", "acs2vcp_k2_uniform"],
+                        "pilot_seed": 42, "first_row_timeout_seconds": 3, "process_timeout_seconds": 5}
+            path = root / "manifest.json"
+            path.write_text(json.dumps(manifest))
+            seen = {}
+            for index, agent in enumerate(manifest["agents"]):
+                args = argparse.Namespace(manifest=path, binary=binary, index=index, commit="a" * 40,
+                                          output=root / ("out-" + agent), sample_interval=0.001,
+                                          repository=str(repository))
+                with patch.dict("os.environ", {"SLURM_JOB_PARTITION": "lem-cpu-normal"}), \
+                        patch("collect.process_sample", return_value=(0.0, 0)), patch("collect.validate_row"), \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    run(args)
+                seen[agent] = json.loads(next(args.output.glob("*/argv.json")).read_text())
+            specification = str((repository / self.SPECIFICATION).resolve())
+            for agent, argv in seen.items():
+                self.assertEqual(argv[argv.index("--agents") + 1], agent)
+                self.assertEqual(argv[argv.index("--compaction-shadow") + 1], specification)
+                self.assertEqual(argv[argv.index("--protocol") + 1], "maze-pairs-v1")
+                self.assertEqual(argv[argv.index("--evaluation-blocks") + 1], "validation")
+            self.assertEqual(seen["acs2vcp_k2"][seen["acs2vcp_k2"].index("--vcp-temperature") + 1], "24")
+            self.assertNotIn("--vcp-temperature", seen["acs2vcp_k2_uniform"])
 
 
 if __name__ == "__main__":

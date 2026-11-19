@@ -57,7 +57,10 @@ family, so a compacting row is validated like that family plus the `compaction` 
 match_formations_train`. A `compaction_shadow` report is accepted on any row when present
 and required when `agent_settings[run].compaction_shadow` is registered. A plain name with a
 `compaction` key is refused. `compacting_rows.json` holds real seed-42 rows used by the tests.
-Passing `compaction_shadow` to the measurement command is not wired into `collect.py` yet.
+`collect.py` passes `agent_settings[run].compaction_shadow` to `--compaction-shadow`: the path is relative
+to the measurement clone (`--repository`, given by `grid_launch.py`), must stay inside it, and its SHA-256
+must equal `compaction_shadow_sha256` of the same settings before the process starts. The experiment of
+this measurement is `rule-compaction` (`experiments/rule-compaction/execution.py`).
 
 `agent_names.json` is the sole archived-to-current run-name mapping. Both the Rust
 fixture/CLI reader and `agent_names.py` consume it. Row collection and replay validation

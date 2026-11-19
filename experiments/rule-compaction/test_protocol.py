@@ -33,9 +33,11 @@ class RegistrationIdentityTests(unittest.TestCase):
         self.assertEqual(SHADOW_PROTOCOL['protocol'], 'maze-pairs-v1')
         self.assertEqual(PAIRS['id'], 'maze-pairs-v1')
 
-    def test_nothing_is_approved(self):
-        self.assertIs(SHADOW_PROTOCOL['approved'], False)
-        self.assertEqual(SHADOW_PROTOCOL['stage'], 'registered_awaiting_user_approval')
+    def test_only_the_shadow_measurement_is_approved_and_the_draft_is_not(self):
+        self.assertIs(SHADOW_PROTOCOL['approved'], True)
+        self.assertEqual(SHADOW_PROTOCOL['stage'], 'approved_pilot_then_grid')
+        self.assertEqual(SHADOW_PROTOCOL['approval']['confirmed_on'], '2026-11-19')
+        self.assertEqual(load(ROOT / 'experiments/rule-compaction/approval.json')['plan_sha256'], sha256(SHADOW))
         self.assertIs(DRAFT['approved'], False)
         self.assertEqual(DRAFT['stage'], 'draft_not_approved')
         self.assertIn('must not be submitted', DRAFT['not_approved'])
@@ -123,7 +125,12 @@ class ShadowRegistrationTests(unittest.TestCase):
 
     def test_the_budget_and_the_mandatory_pilot_are_recorded(self):
         cost = SHADOW_PROTOCOL['cost']
-        self.assertEqual(cost['expected_cpu_hour_ceiling'], 6)
+        self.assertEqual(cost['plan_cpu_hour_expectation'], 6)
+        self.assertGreater(cost['cpu_hour_ceiling'], 6)
+        reservation = cost['pilot_hard_reservation_minutes'] + cost['grid_hard_reservation_minutes']
+        self.assertEqual(cost['cpu_hour_ceiling'], -(-reservation // 60))
+        self.assertEqual(SHADOW_PROTOCOL['execution']['phase_cpu_hour_limit'], cost['cpu_hour_ceiling'])
+        self.assertEqual(SHADOW_PROTOCOL['approval']['cpu_hour_ceiling'], cost['cpu_hour_ceiling'])
         per_seed = sum(sum(limits.values()) for limits in cost['archived_limit_minutes'].values())
         self.assertEqual(cost['archived_limit_minutes_per_seed'], per_seed)
         self.assertEqual(cost['archived_hard_limit_cpu_hours_for_all_seeds_without_shadow'], per_seed * 5 / 60)
@@ -133,7 +140,7 @@ class ShadowRegistrationTests(unittest.TestCase):
         self.assertEqual(pilot['seed'], 42)
         self.assertEqual(pilot['runs'], 7 * 3)
         self.assertIn('grant', ' '.join(SHADOW_PROTOCOL['before_cluster_use']))
-        self.assertIn('approves', SHADOW_PROTOCOL['before_cluster_use'][0])
+        self.assertIn('Approved by the user', SHADOW_PROTOCOL['before_cluster_use'][0])
 
     def test_the_comparator_arms_that_the_command_line_cannot_express_are_declared(self):
         source = (ROOT / 'acs2-measure/src/main.rs').read_text()

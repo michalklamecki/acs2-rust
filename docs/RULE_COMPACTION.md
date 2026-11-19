@@ -175,11 +175,15 @@ population can be reduced, or what it costs, is made anywhere.
 
 ### Next step
 
-The shadow measurement is registered (`experiments/rule-compaction/shadow-protocol.json`)
-and awaits the user's approval and a seed-42 cost pilot. Its gate decides which at most three
-operators go forward to the single-reduction measurement, which exists only as a draft. The
-registration notes that the archived hard limits of these arms already total 8.75
-CPU-hours for five seeds against the plan's 6 CPU-hours expectation; the pilot settles that.
+The shadow measurement (`experiments/rule-compaction/shadow-protocol.json`) is approved by the
+user (2026-11-19: the seed-42 pilot, then the grid of seeds 42-46, with a CPU-hour ceiling above
+the plan's 6; `approval.json`) and wired to the shared grid path (`execution.py`,
+`collect.py` pass-through of `compaction_shadow`, hash verified on the node). Registered hard
+limits are `max(2 x archived, archived + 30)` minutes per run; the pilot reserves 882 minutes
+and the grid 3,990, so the ceiling is 82 CPU-hours. The next step is the seed-42 pilot from the
+cluster clone, as described in `experiments/rule-compaction/README.md`, "Submitting the shadow
+measurement". Its gate decides which at most three operators go forward to the single-reduction
+measurement, which exists only as a draft.
 
 ### Known open questions
 

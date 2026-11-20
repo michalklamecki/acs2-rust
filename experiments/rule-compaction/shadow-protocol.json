@@ -96,7 +96,7 @@
       "family": "acs2",
       "heads": 1,
       "control_of": null,
-      "shadow_specification": "specifications/shadow_without_evidence.json",
+      "shadow_specification": "experiments/rule-compaction/specifications/shadow_without_evidence.json",
       "shadow_specification_sha256": "55025ede8cdd341113eb025ac41b36661927e2a4745a4c79b3c87205e211b14a"
     },
     {
@@ -104,7 +104,7 @@
       "family": "acs2er",
       "heads": 1,
       "control_of": null,
-      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification": "experiments/rule-compaction/specifications/shadow_all_operators.json",
       "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
     },
     {
@@ -112,7 +112,7 @@
       "family": "acs2her",
       "heads": 1,
       "control_of": null,
-      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification": "experiments/rule-compaction/specifications/shadow_all_operators.json",
       "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
     },
     {
@@ -120,7 +120,7 @@
       "family": "acs2vcp",
       "heads": 2,
       "control_of": null,
-      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification": "experiments/rule-compaction/specifications/shadow_all_operators.json",
       "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
       "temperature": 24
     },
@@ -129,7 +129,7 @@
       "family": "acs2vcp",
       "heads": 4,
       "control_of": null,
-      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification": "experiments/rule-compaction/specifications/shadow_all_operators.json",
       "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
       "temperature": 24
     },
@@ -138,7 +138,7 @@
       "family": "acs2vcp",
       "heads": 2,
       "control_of": "acs2vcp_k2",
-      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification": "experiments/rule-compaction/specifications/shadow_all_operators.json",
       "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
     },
     {
@@ -146,7 +146,7 @@
       "family": "acs2vcp",
       "heads": 4,
       "control_of": "acs2vcp_k4",
-      "shadow_specification": "specifications/shadow_all_operators.json",
+      "shadow_specification": "experiments/rule-compaction/specifications/shadow_all_operators.json",
       "shadow_specification_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
     }
   ],
@@ -184,33 +184,33 @@
       ],
       "agent_settings": {
         "acs2": {
-          "compaction_shadow": "specifications/shadow_without_evidence.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_without_evidence.json",
           "compaction_shadow_sha256": "55025ede8cdd341113eb025ac41b36661927e2a4745a4c79b3c87205e211b14a"
         },
         "acs2er": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2her": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k2": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k4": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k2_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k4_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         }
       },
@@ -252,33 +252,33 @@
       ],
       "agent_settings": {
         "acs2": {
-          "compaction_shadow": "specifications/shadow_without_evidence.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_without_evidence.json",
           "compaction_shadow_sha256": "55025ede8cdd341113eb025ac41b36661927e2a4745a4c79b3c87205e211b14a"
         },
         "acs2er": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2her": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k2": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k4": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k2_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k4_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         }
       },
@@ -319,33 +319,33 @@
       ],
       "agent_settings": {
         "acs2": {
-          "compaction_shadow": "specifications/shadow_without_evidence.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_without_evidence.json",
           "compaction_shadow_sha256": "55025ede8cdd341113eb025ac41b36661927e2a4745a4c79b3c87205e211b14a"
         },
         "acs2er": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2her": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k2": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k4": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c",
           "temperature": 24
         },
         "acs2vcp_k2_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         },
         "acs2vcp_k4_uniform": {
-          "compaction_shadow": "specifications/shadow_all_operators.json",
+          "compaction_shadow": "experiments/rule-compaction/specifications/shadow_all_operators.json",
           "compaction_shadow_sha256": "97c2cd2cdbd52ca91e9fcd38924b7d3f7482762c4bb6ecbeb4d5bd4439e5a12c"
         }
       },
@@ -449,6 +449,7 @@
     "seed": 42,
     "runs": 21,
     "rule": "Run every arm on every tuning maze at the registered budgets with seed 42 before the grid. Record allocation CPU, process CPU, wall time and the population-size area per run, and report them beside the registered limits. The user approved the grid together with the pilot, so the grid follows when the pilot completes cleanly.",
+    "stopped_attempts": "A pilot attempt that stops before completing is rerun into a new result root. Only the completed attempt is charged to the grid as its pilot allocation; a stopped attempt is charged by the CPU time it consumed, which the rounding margin between the summed hard reservations and the ceiling must cover. If it consumed more than that margin, the ceiling is re-registered and re-approved.",
     "identity": "Where verified archived rows of the same agent exist, the seed-42 learning fields must reproduce them bit for bit."
   },
   "before_cluster_use": [

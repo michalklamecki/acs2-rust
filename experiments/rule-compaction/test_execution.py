@@ -18,6 +18,7 @@ sys.path.append(str(ROOT / 'experiments/grid'))
 
 from grid_authorization import derive_manifest
 from grid_protocol import atomic_json
+import collect
 from submit import prepare, require_authorization, submit
 
 ACCOUNT = patch.dict(os.environ, {'WCSS_USER': 'tester', 'WCSS_ACCOUNT': 'tester-account',
@@ -86,11 +87,20 @@ class DerivationTests(unittest.TestCase):
                 for arm in SHADOW_ARMS:
                     settings = configuration['agent_settings'][arm['run_name']]
                     self.assertEqual(settings['compaction_shadow'], arm['specification'])
-                    path = ROOT / 'experiments/rule-compaction' / settings['compaction_shadow']
+                    path = ROOT / settings['compaction_shadow']
                     self.assertEqual(settings['compaction_shadow_sha256'], sha256(path))
                     self.assertEqual(settings.get('temperature'), 24 if arm['run_name'] in ('acs2vcp_k2', 'acs2vcp_k4') else None)
                     expected = 'shadow_without_evidence.json' if arm['run_name'] == 'acs2' else 'shadow_all_operators.json'
                     self.assertEqual(Path(settings['compaction_shadow']).name, expected)
+
+    def test_every_registered_specification_resolves_in_the_checkout_the_way_the_node_resolves_it(self):
+        for manifest in (pilot_manifest(*registered()), grid_manifest(*registered())):
+            for configuration in manifest['configurations']:
+                for name, settings in configuration['agent_settings'].items():
+                    with self.subTest(stage=manifest['stage'], maze=configuration['id'], run=name):
+                        arguments = collect.shadow_arguments(settings, ROOT)
+                        self.assertEqual(arguments, ['--compaction-shadow', str(ROOT / settings['compaction_shadow'])])
+                        self.assertTrue(Path(arguments[1]).is_file())
 
     def test_the_hard_reservation_of_pilot_and_grid_fits_the_ceiling(self):
         pilot, grid = pilot_manifest(*registered()), grid_manifest(*registered())
@@ -180,11 +190,11 @@ class ApprovalTests(unittest.TestCase):
     def test_a_changed_specification_file_is_refused_at_derivation(self):
         with tempfile.TemporaryDirectory() as temporary:
             copy_directory = Path(temporary)
-            (copy_directory / 'specifications').mkdir()
             for arm in SHADOW_ARMS:
                 target = copy_directory / arm['specification']
-                target.write_bytes((ROOT / 'experiments/rule-compaction' / arm['specification']).read_bytes() + b' ')
-            with patch('execution.HERE', copy_directory), self.assertRaises(ValueError):
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / arm['specification']).read_bytes() + b' ')
+            with patch('execution.ROOT', copy_directory), self.assertRaises(ValueError):
                 authorization_manifest(dict(stage=PILOT_STAGE))
 
 

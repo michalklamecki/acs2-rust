@@ -181,9 +181,16 @@ cd ~/acs2-rust
 mkdir -p ~/compaction_runs
 python3 -B experiments/rule-compaction/execution.py --print-manifest pilot --repo ~/acs2-rust \
   > ~/compaction_runs/shadow-pilot-manifest.json
-python3 -B experiments/grid/submit.py --root ~/compaction_runs/shadow-pilot \
+python3 -B experiments/grid/submit.py --root ~/compaction_runs/shadow-pilot-2 \
   --manifest ~/compaction_runs/shadow-pilot-manifest.json --repo ~/acs2-rust
 ```
+
+The first attempt wrote `~/compaction_runs/shadow-pilot`, where every element stopped because the
+registered specification paths were relative to the experiment directory and `collect.py` resolves
+them against the repository root; it consumed about 21 CPU-seconds. That root stays as it is, and
+the next attempt uses `shadow-pilot-2`. Only the completed pilot is charged to the grid as its
+pilot allocation; the stopped attempt counts by the CPU time it consumed, which the 2,880
+CPU-seconds between the summed reservations (292,320) and the ceiling (295,200) cover.
 
 Wait for all 21 runs, pull the root without deletion, verify the rows and report the measured
 cost. Then the grid, which needs the approval file:
@@ -206,7 +213,8 @@ What the shared path checks:
   and the shared grant.
 - **On the node**: the plan bytes, the clone's `HEAD` and cleanliness, the allocation identity
   and remaining time, the CPU model, the binary SHA-256 and the preset.
-  `collect.py` resolves `agent_settings[run].compaction_shadow` inside the clone, refuses an
+  `collect.py` resolves `agent_settings[run].compaction_shadow` (registered relative to the
+  repository root, for example `experiments/rule-compaction/specifications/shadow_all_operators.json`) inside the clone, refuses an
   absolute path or one that leaves the clone, verifies the specification's SHA-256 against
   `compaction_shadow_sha256` before the process starts, and passes `--compaction-shadow <path>`.
   Prioritized VCP arms also get `--vcp-temperature 24`, and every invocation runs one agent.

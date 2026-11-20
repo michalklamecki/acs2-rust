@@ -39,7 +39,7 @@ def verify_inputs(registration):
     if digest_of(PAIR_PROTOCOL.read_bytes()) != registration['pair_protocol_sha256']:
         raise ValueError('the pair protocol differs from the registered one')
     for arm in registration['arms']:
-        if digest_of((HERE / arm['shadow_specification']).read_bytes()) != arm['shadow_specification_sha256']:
+        if digest_of((ROOT / arm['shadow_specification']).read_bytes()) != arm['shadow_specification_sha256']:
             raise ValueError('a shadow specification differs from its registered hash: ' + arm['run_name'])
 
 

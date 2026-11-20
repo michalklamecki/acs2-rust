@@ -180,8 +180,10 @@ user (2026-11-19: the seed-42 pilot, then the grid of seeds 42-46, with a CPU-ho
 the plan's 6; `approval.json`) and wired to the shared grid path (`execution.py`,
 `collect.py` pass-through of `compaction_shadow`, hash verified on the node). Registered hard
 limits are `max(2 x archived, archived + 30)` minutes per run; the pilot reserves 882 minutes
-and the grid 3,990, so the ceiling is 82 CPU-hours. The next step is the seed-42 pilot from the
-cluster clone, as described in `experiments/rule-compaction/README.md`, "Submitting the shadow
+and the grid 3,990, so the ceiling is 82 CPU-hours. Registered specification paths are relative to the repository root (the first pilot attempt,
+root `~/compaction_runs/shadow-pilot`, stopped on every element because they were relative to the
+experiment directory; the registration was corrected and re-approved in substance). The next step is
+the seed-42 pilot into a new root, `shadow-pilot-2`, from the cluster clone, as described in `experiments/rule-compaction/README.md`, "Submitting the shadow
 measurement". Its gate decides which at most three operators go forward to the single-reduction
 measurement, which exists only as a draft.
 

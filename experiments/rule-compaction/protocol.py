@@ -35,8 +35,9 @@ FIRST_ROW_TIMEOUT_SECONDS = 60
 JOB_NAME = 'rule-compaction-shadow'
 VCP_DIAGNOSTICS = 'evaluation_disagreement'
 
-SHADOW_WITH_EVIDENCE = 'specifications/shadow_all_operators.json'
-SHADOW_WITHOUT_EVIDENCE = 'specifications/shadow_without_evidence.json'
+EXPERIMENT_DIRECTORY = 'experiments/rule-compaction'
+SHADOW_WITH_EVIDENCE = EXPERIMENT_DIRECTORY + '/specifications/shadow_all_operators.json'
+SHADOW_WITHOUT_EVIDENCE = EXPERIMENT_DIRECTORY + '/specifications/shadow_without_evidence.json'
 ONCE_BASE = 'mature_subsumption_exact_once.json'
 INTERVENTION_POINTS = {'early': 50_000, 'middle': 500_000, 'late': 1_500_000}
 
@@ -93,7 +94,7 @@ def dump(value):
 
 
 def specification_path(relative):
-    return HERE / relative
+    return ROOT / relative
 
 
 def intervention_name(point, evidence):
@@ -269,6 +270,7 @@ def shadow_protocol():
             seed=42,
             runs=len(SHADOW_ARMS) * len(TUNING_MAZES),
             rule='Run every arm on every tuning maze at the registered budgets with seed 42 before the grid. Record allocation CPU, process CPU, wall time and the population-size area per run, and report them beside the registered limits. The user approved the grid together with the pilot, so the grid follows when the pilot completes cleanly.',
+            stopped_attempts='A pilot attempt that stops before completing is rerun into a new result root. Only the completed attempt is charged to the grid as its pilot allocation; a stopped attempt is charged by the CPU time it consumed, which the rounding margin between the summed hard reservations and the ceiling must cover. If it consumed more than that margin, the ceiling is re-registered and re-approved.',
             identity='Where verified archived rows of the same agent exist, the seed-42 learning fields must reproduce them bit for bit.',
         ),
         before_cluster_use=[

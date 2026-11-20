@@ -1,9 +1,10 @@
 {
   "approved": true,
-  "plan_sha256": "c1dc3b18787e84d13cad13edfa9e51d758e6e8c01da63843d6e3d6f9dee53107",
+  "plan_sha256": "f64de9999fdaa468779a30ce587f660f6b45b3fc7f97468493556c9ecbb9f52e",
   "confirmed_on": "2026-11-19",
   "phase_cpu_hour_limit": 82,
   "plan_cpu_hour_expectation": 6,
   "scope": "shadow_measurement_pilot_and_grid",
-  "note": "The user approved the seed-42 cost pilot on the three tuning mazes and then the full grid of seeds 42-46, and a budget above the plan expectation of 6 CPU-hours."
+  "note": "The user approved the seed-42 cost pilot on the three tuning mazes and then the full grid of seeds 42-46, and a budget above the plan expectation of 6 CPU-hours.",
+  "re_registration_note": "Re-registered on 2026-11-20 only to correct the registered shadow specification paths, which are now relative to the measurement repository root (the first pilot attempt stopped on every element because collect.py resolved them there). Arms, mazes, seeds, limits, ceiling and the specification files are unchanged; the user's approval of 2026-11-19 stands in substance."
 }

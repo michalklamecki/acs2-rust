@@ -79,19 +79,19 @@ class ShadowRegistrationTests(unittest.TestCase):
     def test_every_arm_has_a_pinned_specification_that_its_agent_can_run(self):
         for arm in SHADOW_PROTOCOL['arms']:
             with self.subTest(arm=arm['run_name']):
-                path = ROOT / 'experiments/rule-compaction' / arm['shadow_specification']
+                path = ROOT / arm['shadow_specification']
                 self.assertEqual(sha256(path), arm['shadow_specification_sha256'])
                 specification = load(path)
                 labels = [entry['label'] for entry in specification['entries']]
                 self.assertEqual(len(labels), len(set(labels)))
                 if arm['run_name'] == 'acs2':
-                    self.assertEqual(arm['shadow_specification'], 'specifications/shadow_without_evidence.json')
+                    self.assertEqual(arm['shadow_specification'], 'experiments/rule-compaction/specifications/shadow_without_evidence.json')
                     self.assertEqual(specification['evidence_sample'], 0)
                     self.assertIsNone(specification['audit'])
                     kinds = {operator['kind'] for entry in specification['entries'] for operator in entry['operators']}
                     self.assertFalse(kinds & {'idle_pruning', 'capacity'})
                 else:
-                    self.assertEqual(arm['shadow_specification'], 'specifications/shadow_all_operators.json')
+                    self.assertEqual(arm['shadow_specification'], 'experiments/rule-compaction/specifications/shadow_all_operators.json')
                     self.assertGreater(specification['evidence_sample'], 0)
 
     def test_the_run_names_the_grid_validators_know_are_the_compacting_forms_of_the_arms(self):
@@ -113,7 +113,7 @@ class ShadowRegistrationTests(unittest.TestCase):
             self.assertEqual(configuration['targets'][-1], configuration['budget_steps'])
             self.assertEqual(set(configuration['agent_settings']), {arm['run_name'] for arm in SHADOW_ARMS})
             for name, settings in configuration['agent_settings'].items():
-                self.assertTrue((ROOT / 'experiments/rule-compaction' / settings['compaction_shadow']).exists())
+                self.assertTrue((ROOT / settings['compaction_shadow']).exists())
                 self.assertEqual(settings.get('temperature'), 24 if name in ('acs2vcp_k2', 'acs2vcp_k4') else None)
 
     def test_the_command_template_uses_options_the_measurement_binary_has(self):
